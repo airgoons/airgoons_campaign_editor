@@ -2,7 +2,7 @@
 A suite of tools for streamlining the DCS campaign mission creation process.
 
 ### Setup
-1. Install a modern python 3 (I'm using 3.10)
+1. Install a modern Python 3 (e.g. 3.10, 3.12)
 2. Clone the repository
 3. Make a virtual environment `python -m venv venv`
 4. Activate the virtual environment `./venv/Scripts/Activate`
