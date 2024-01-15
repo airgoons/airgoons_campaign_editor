@@ -4,7 +4,7 @@ from dcs import task
 from dcs.helicopters import HelicopterType
 from dcs.planes import PlaneType
 
-from game.modsupport import helicoptermod, planemod
+from pydcs_extensions.modsupport import helicoptermod, planemod
 from pydcs_extensions.weapon_injector import inject_weapons
 
 

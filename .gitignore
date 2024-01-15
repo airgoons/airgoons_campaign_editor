@@ -6,3 +6,6 @@ venv/
 .venv/
 .vscode/
 *.code-workspace
+
+#python
+*.pyc

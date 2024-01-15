@@ -3,7 +3,7 @@
 #
 from dcs import unittype
 
-from game.modsupport import vehiclemod
+from pydcs_extensions.modsupport import vehiclemod
 
 
 @vehiclemod
