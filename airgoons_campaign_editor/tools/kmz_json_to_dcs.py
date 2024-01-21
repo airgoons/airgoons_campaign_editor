@@ -29,9 +29,10 @@ def kmz_json_to_dcs(json_path, miz_path):
     miz.save(miz_path)
 
 if __name__ == "__main__":
-    json_path = "output\\tlaw_kmz.json"
-    miz_path = "output\\tlaw.miz"
+    json_path = ".\\output\\tlaw_kmz.json"
+    miz_path = ".\\output\\tlaw.miz"
 
     kmz_json_to_dcs(json_path, miz_path)
 
     # @TODO Implement command line execution handling
+
