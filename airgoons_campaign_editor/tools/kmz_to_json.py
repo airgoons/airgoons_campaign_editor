@@ -75,6 +75,7 @@ def kmz_to_json(
     with open(json_output_path, 'w') as json_file:
         json_file.write(json.dumps(data, indent=4))
 
+    cleanup(kmz_filename)
 
 def cleanup(kmz_filename):
     if os.path.exists(kmz_filename):
@@ -96,4 +97,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     kmz_to_json(kmz_online_url=args.url, json_output_path=args.output)
-    cleanup(temp_kmz_filename)
