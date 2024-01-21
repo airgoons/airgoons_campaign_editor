@@ -1,3 +1,4 @@
+import os
 import urllib.request
 from zipfile import ZipFile
 import datetime
@@ -17,13 +18,20 @@ temp_kmz_filename = "temp.kmz"
 expected_google_maps_kml_path = "{0}\\doc.kml".format(temp_dir)
 ### END CONFIG
 
-def kmz_to_json(kmz_online_url=None, json_output_path="output.json", kmz_filename=temp_kmz_filename, kml_target=expected_google_maps_kml_path, ):
+def kmz_to_json(
+    kmz_online_url=None,
+    json_output_path="output.json",
+    kmz_filename=temp_kmz_filename,
+    kml_target=expected_google_maps_kml_path
+):    
+    cleanup(temp_kmz_filename)
+    
     if kmz_online_url is None:
         raise ValueError("No URL input")
 
     urllib.request.urlretrieve(kmz_online_url, kmz_filename)
     with ZipFile(kmz_filename, 'r') as kmz_data:
-        kmz_data.extractall(".\\temp")
+        kmz_data.extractall(temp_dir)
 
     data = {
         "url": kmz_online_url,
@@ -69,8 +77,11 @@ def kmz_to_json(kmz_online_url=None, json_output_path="output.json", kmz_filenam
 
 
 def cleanup(kmz_filename):
-    remove(kmz_filename)
-    rmtree(temp_dir)
+    if os.path.exists(kmz_filename):
+        remove(kmz_filename)
+    
+    if os.path.exists(temp_dir):
+        rmtree(temp_dir)
 
 
 if __name__ == "__main__":
