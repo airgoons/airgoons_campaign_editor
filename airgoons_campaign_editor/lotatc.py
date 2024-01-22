@@ -11,33 +11,26 @@ def Font(
 
 ###
 # https://www.lotatc.com/documentation/client/classification.html
-Classifications = Enum(
-    "Classifications",
-    [
-        "unknown",
-        "assumed_friend",
-        "friend",
-        "neutral",
-        "suspect",
-        "hostile"
-    ]
-)
+class Classifications(str, Enum):
+    unknown:  str = "unknown"
+    assumed_friend: str = "assumed_friend"
+    friend: str = "friend"
+    neutral: str = "neutral"
+    suspect: str = "suspect"
+    hostile: str = "hostile"
 
-Dimensions = Enum(
-    "Dimensions",
-    [
-        "unknown",
-        "air",
-        "land_unit",
-        "sea_surface",
-        "land_installation",
-        "sea_subsurface",
-        "activity_event",
-        "air_civil",
-        "sea_surface_civil",
-        "land_civil"
-    ]
-)
+class Dimensions(str, Enum):
+    unknown: str = "unknown"
+    air: str = "air"
+    land_unit: str = "land_unit"
+    sea_surface: str = "sea_surface"
+    land_installation: str = "land_installation"
+    sea_subsurface: str = "sea_subsurface"
+    activity_event: str = "activity_event"
+    air_civil: str = "air_civil"
+    sea_surface_civil: str = "sea_surface_civil"
+    land_civil: str = "land_civil"
+
 
 # @NOTE:  Sub Dimensions not implemented
 ###
