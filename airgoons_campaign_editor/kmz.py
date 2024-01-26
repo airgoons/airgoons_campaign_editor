@@ -28,6 +28,9 @@ class Geometry(dict):
             geometry_type=geometry_type,
             **kwargs
         )
+    
+    def get_geometry_type(self):
+        return self.get("geometry_type", "")
 
 
 class Point(Geometry):
@@ -41,6 +44,12 @@ class Point(Geometry):
             longitude=longitude
         )
 
+    def get_latitude(self):
+        return self.get("latitude", 0.0)
+    
+    def get_longitude(self):
+        return self.get("longitude", 0.0)
+
 
 class Polygon(Geometry):
     def __init__(self,
@@ -51,6 +60,9 @@ class Polygon(Geometry):
             coordinates=coordinates
         )
 
+    def get_coordinates(self):
+        return self.get("coordinates", [])
+
 
 class LineString(Geometry):
     def __init__(self,
@@ -60,6 +72,9 @@ class LineString(Geometry):
             geometry_type=GeometryTypes.LineString,
             coordinates=coordinates
         )
+
+    def get_coordinates(self):
+        return self.get("coordinates", [])
         
 
 class KMZItem(dict):
@@ -73,6 +88,15 @@ class KMZItem(dict):
             description=description,
             geometry=geometry
         )
+    
+    def get_name(self):
+        return self.get("name", "")
+    
+    def get_description(self):
+        return self.get("description", "")
+    
+    def get_geometry(self):
+        return self.get("geometry", None)
 
 
 class KMZLayer(dict):
@@ -85,6 +109,11 @@ class KMZLayer(dict):
             items=items
         )
     
+    def get_name(self):
+        return self.get("name", "")
+    
+    def get_items(self):
+        return self.get("items", [])
 
 
 class KMZ():
@@ -99,7 +128,7 @@ class KMZ():
                 return data
 
             else:
-                return json.JSONEncoder.default(self, object)
+                return json.JSONEncoder.default(self, obj)
 
 
     @staticmethod
@@ -192,8 +221,3 @@ class KMZ():
 
     def to_json(self):
         return json.dumps(self, indent=4, cls=KMZ.Encoder)
-
-
-foo = KMZ("https://www.google.com/maps/d/u/1/kml?mid=1RHYRehltgtfH02o6Yn9JgBmaHt2XqZs")
-foo.save_json("test.json")
-print("done")
