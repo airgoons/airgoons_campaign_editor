@@ -83,7 +83,8 @@ class Circle(Drawing):
         longitude: float = 0.0,
         radius: float = 0.0,
         text: str = "",
-        font: dict = Font()
+        font: dict = Font(),
+        **kwargs
     ):
         super(Circle, self).__init__(
             type="circle",
@@ -91,7 +92,8 @@ class Circle(Drawing):
             longitude=longitude,
             radius=radius,
             text=text,
-            font=font
+            font=font,
+            **kwargs
         )
 
 
@@ -100,34 +102,51 @@ class Point(Drawing):
         latitude: float = 0.0,
         longitude: float = 0.0,
         text: str = "",
-        font: dict = Font()
+        font: dict = Font(),
+        **kwargs
     ):
         super(Point, self).__init__(
             type="point",
             font=font,
             latitude=latitude,
             longitude=longitude,
-            text=text
+            text=text,
+            **kwargs
         )
 
 
 class Line(Drawing):
     def __init__(self,
         points: list = [],
+        **kwargs
     ):
         super(Line, self).__init__(
             type="line",
-            points=points
+            points=points,
+            **kwargs
+        )
+
+    def add_point(self,
+        latitude: float,
+        longitude: float
+    ):
+        self["points"].append(
+            dict(
+                latitude=latitude,
+                longitude=longitude
+            )
         )
 
 
 class Polygon(Drawing):
     def __init__(self,
         points: list = [],
+        **kwargs
     ):
         super(Polygon, self).__init__(
             type="polygon",
-            points = points
+            points = points,
+            **kwargs
         )
 
 class Corridor(Drawing):
@@ -136,13 +155,15 @@ class Corridor(Drawing):
         radius: int = 100,
         text: str = "",
         font: dict = Font(),
+        **kwargs
     ):
         super(Corridor, self).__init__(
             type="corridor",
             points=points,
             radius=radius,
             text=text,
-            font=font
+            font=font,
+            **kwargs
         )
 
 
@@ -153,7 +174,8 @@ class Orbit(Drawing):
         headingDeg: float = 0.0,
         length: float = 0.0,
         width: float = 0.0,
-        text: str = ""
+        text: str = "",
+        **kwargs
     ):
         super(Orbit, self).__init__(
             type="orbit",
@@ -162,7 +184,8 @@ class Orbit(Drawing):
             headingDeg=headingDeg,
             length=length,
             width=width,
-            text=text
+            text=text,
+            **kwargs
         )
 
 
@@ -173,6 +196,7 @@ class Symbol(Drawing):
         text: str = "",
         font: dict = Font(),
         classification: dict = Classification(classification="friend", dimension="air", sub_dimension=""),
+        **kwargs
     ):
         super(Symbol, self).__init__(
             type="symbol",
@@ -180,11 +204,32 @@ class Symbol(Drawing):
             longitude=longitude,
             text=text,
             font=font,
-            classification=classification
+            classification=classification,
+            **kwargs
         )
 
 
-class LotATC(dict):
+class LotATC():
+    class Encoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, LotATC):
+                data = dict(
+                    author = obj.author,
+                    drawings = obj.drawings,
+                    enable = obj.enable,
+                    id = obj.id,
+                    name = obj.name,
+                    shared = obj.shared,
+                    timestamp = obj.timestamp,
+                    type = obj.type,
+                    version = obj.version
+                )
+                return data
+
+            else:
+                return json.JSONEncoder.default(self, obj)
+
+
     def __init__(self,
         author: str = "",
         drawings: list = [],
@@ -196,25 +241,16 @@ class LotATC(dict):
         type: str = "layer",
         version: str = "hotfixes/220"
     ):
-        dict.__init__(self,
-            author=author,
-            drawings=drawings,
-            enable=enable,
-            id=id,
-            name=name,
-            shared=shared,
-            timestamp=timestamp,
-            type=type,
-            version=version
-        )
+        self.author = author
+        self.drawings = drawings
+        self.enable = enable
+        self.id = id
+        self.name = name
+        self.shared = shared
+        self.timestamp = timestamp
+        self.type = type
+        self.version = version
 
-    def add_drawing(self, drawing):
-        self["drawings"].append(drawing)
-
-
-if __name__ == "__main__":
-    drawings = [Circle(), Point(), Line(), Polygon(), Corridor(), Orbit(), Symbol()]
-    latc = LotATC(drawings=drawings)
-
-    with open("lotatc.json", "w") as json_file:
-        json.dump(latc, json_file, indent=4)
+    def save_json(self, json_path):
+        with open(json_path, 'w') as json_file:
+            json.dump(self, json_file, indent=4, cls=LotATC.Encoder)
