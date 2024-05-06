@@ -72,3 +72,6 @@ class Brigade():
         """
         distance = max((self.status_command * self.status_logistics) * self.advance_distance_max, self.advance_distance_min)
         return distance
+
+    def set_position(self, latitude: float, longitude: float):
+        self.position = [latitude, longitude]
