@@ -1,9 +1,9 @@
 from enum import Enum
 
-class Status(int, Enum):
-    # Unit deployment capability in percentage
-    GREEN = 100
-    YELLOW = 75
-    RED = 50
-    BLACK = 25
-    DESTROYED = 0
+class Status(float, Enum):
+    # Unit deployment capability in float percentage
+    GREEN = 1.00
+    YELLOW = 0.75
+    RED = 0.50
+    BLACK = 0.25
+    DESTROYED = 0.0
