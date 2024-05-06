@@ -1,12 +1,11 @@
+import formation
 from unit_status import Status
 from unit_classification import Classification
-from math import max
 
-class Brigade():
+class Brigade(formation.Formation):
     def __init__(
         self,
-        parent_name: str = "<DEFAULT PARENT NAME>",
-        name: str = "<DEFAULT NAME>",
+        name: str = "<DEFAULT BRIGADE>",
         
         # Unit Status (from campaign force tracker)
         status_recon: Status = Status.GREEN,                # recon unit deployment capability
@@ -14,44 +13,14 @@ class Brigade():
         status_air_defense: Status = Status.GREEN,          # air defense deployment capability
         status_logistics: Status = Status.GREEN,            # logistics deployment capability
         status_command: Status = Status.GREEN,              # command deployment capability
-
-        # Unit Composition (defined by subclass)
-        battalions: list = [],                              # list of subordinate Battalions
-        companies: list = [],                               # list of subordinate Companies not under a Battalion command
-
-        # Unit Position (from campaign map)
-        position: list = [],                                # floats in the form [latitude, longitude]
-        
-        # Unit Deployment (defined by subclass)
-        maneuverability: float = 500,                       # determines radius of zone in which the HQ will be randomly placed (meters)
-        advance_direction: float = 0,                       # direction of the central advancement vector (degrees True)
-        advance_distance_max: float = 50000,                # maxium advancement distance (meters) of any subordinate unit
-        advance_distance_min: float = 100,                  # minimum advancement distance (meters) of any subordinate unit
-        advance_cone_angle: float = 0,                      # size of advancement cone (degrees)
-
     ):
-        self.classification = Classification.COMMAND  # brigades are always only HQ units
+        super().__init__(name, formation.FormationType.BRIGADE)
 
-        # Unit Status
         self.status_recon = status_recon
         self.status_manuever = status_manuever
         self.status_air_defense = status_air_defense
         self.status_logistics = status_logistics
         self.status_command = status_command
-
-        # Unit Composition
-        self.battalions = battalions
-        self.companies = companies
-
-        # Unit Position (from campaign map)
-        self.position = position
-
-        # Unit Deployment
-        self.maneuverability = maneuverability
-        self.advance_direction = advance_direction
-        self.advance_distance_max = advance_distance_max
-        self.advance_distance_min = advance_distance_min
-        self.advance_cone_angle = advance_cone_angle
 
     def best_deployment_distance(self):
         """
@@ -72,6 +41,3 @@ class Brigade():
         """
         distance = max((self.status_command * self.status_logistics) * self.advance_distance_max, self.advance_distance_min)
         return distance
-
-    def set_position(self, latitude: float, longitude: float):
-        self.position = [latitude, longitude]
