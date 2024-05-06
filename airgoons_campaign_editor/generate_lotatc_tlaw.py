@@ -1,88 +1,94 @@
-import os
 import json
-from shutil import rmtree
 
-import tools.kmz_to_json as k2j
-import kmz_to_lotatc as k2l
 import lotatc
+import kmz
 
+latest_kmz = kmz.KMZ("https://www.google.com/maps/d/u/1/kml?mid=1RHYRehltgtfH02o6Yn9JgBmaHt2XqZs")
 
-def generate_lotatc_tlaw(
-    gmap_url: str,
-    kmz_json_path: str,
-    lotatc_json_path: str,
-    kmz_templates: list
-):
-    k2j.kmz_to_json(gmap_url, kmz_json_path)
-    lotatc_obj = k2l.kmz_to_lotatc(kmz_json_path, lotatc_json_path, kmz_templates)
+lotatc_layers = []
+for kmz_layer in latest_kmz.layers:
+    if(kmz_layer.get_name() == "ABM Information"):
+        drawings = []
+        for kmz_item in kmz_layer.get_items():
+            if kmz_item.get_geometry().get_geometry_type() == kmz.GeometryTypes.LineString:
+                drawing = lotatc.Line(
+                    author="wonkotron",
+                    name=kmz_item.get_name(),
+                    lineWidth=4,
+                    color="#FFFFFFFF"
+                )
 
-    with open(lotatc_json_path, 'w') as lotatc_json_file:
-        json.dump(lotatc_obj, lotatc_json_file, indent=4)
+                for (longitude, latitude, altitude) in kmz_item.get_geometry().get_coordinates():
+                    drawing.add_point(latitude, longitude)
 
-
-
-if __name__ == "__main__":
-    #@TODO:  Implement argparse
-    gmap_url = "https://www.google.com/maps/d/u/1/kml?mid=1RHYRehltgtfH02o6Yn9JgBmaHt2XqZs"
-    
-    output_dir = ".\\output"
-    kmz_json_path = "{0}\\tlaw_kmz.json".format(output_dir)
-    lotatc_json_path = "{0}\\tlaw_lotatc.json".format(output_dir)
-    
-    blufor_army = k2l.KMZTemplate(
-        "blufor_army",
-        "BLUFOR Army",
-        lotatc.Classification(
-            lotatc.Classifications.friend,
-            lotatc.Dimensions.land_unit
+                drawings.append(drawing)
+        
+        lotatc_layer = lotatc.LotATC(
+            author="wonkotron",
+            name=kmz_layer.get_name(),
+            drawings=drawings
         )
-    )
+        lotatc_layers.append(lotatc_layer)
 
-    blufor_air_force = k2l.KMZTemplate(
-        "blufor_air_force",
-        "BLUFOR Air Force",
-        lotatc.Classification(
-            lotatc.Classifications.friend,
-            lotatc.Dimensions.land_installation
-        )
-    )
+    elif(kmz_layer.get_name() == "PLA Ground Forces"):
+        drawings = []
+        for kmz_item in kmz_layer.get_items():
+            if "ADA BN" in kmz_item.get_name():
+                lines = kmz_item.get_description().split("<br>")
+                
+                for line in lines:
+                    if "threat," in line:
+                        _, distance_str = line.split(", ")
+                        distance_nm = float(distance_str)
+                        distance_m = 1852 * distance_nm
 
-    blufor_navy = k2l.KMZTemplate(
-        "blufor_navy",
-        "BLUFOR Navy",
-        lotatc.Classification(
-            lotatc.Classifications.friend,
-            lotatc.Dimensions.sea_surface
-        )
-    )
+                        drawing = lotatc.Circle(
+                            name=kmz_item.get_name(),
+                            text=kmz_item.get_name(),
+                            author="wonkotron",
+                            latitude = kmz_item.get_geometry().get_latitude(),
+                            longitude = kmz_item.get_geometry().get_longitude(),
+                            radius = distance_m,
+                            lineWidth = 1,
+                            color = "#FF2400",
+                            colorBg = "#00ff0000"
+                        )
 
-    pla_ground_forces = k2l.KMZTemplate(
-        "pla_ground_forces",
-        "PLA Ground Forces",
-        lotatc.Classification(
-            lotatc.Classifications.hostile,
-            lotatc.Dimensions.land_unit
-        )
-    )
+                        drawings.append(drawing)
 
-    pla_air_force = k2l.KMZTemplate(
-        "pla_air_force",
-        "PLA Air Force",
-        lotatc.Classification(
-            lotatc.Classifications.hostile,
-            lotatc.Dimensions.land_installation
+        lotatc_layer = lotatc.LotATC(
+            author="wonkotron",
+            name="Threat Rings",
+            drawings=drawings
         )
-    )
-    
-    pla_navy = k2l.KMZTemplate(
-        "pla_navy",
-        "PLA Navy",
-        lotatc.Classification(
-            lotatc.Classifications.hostile,
-            lotatc.Dimensions.sea_surface
+        lotatc_layers.append(lotatc_layer)
+
+    elif(kmz_layer.get_name() == "AOs, Waypoints, Inftrastructure"):
+        drawings = []
+        for kmz_item in kmz_layer.get_items():
+            if "Rio Pescado Bridge" in kmz_item.get_name():
+                drawing = lotatc.Symbol(
+                    name=kmz_item.get_name(),
+                    text=kmz_item.get_name(),
+                    author="wonkotron",
+                    latitude = kmz_item.get_geometry().get_latitude(),
+                    longitude = kmz_item.get_geometry().get_longitude(),
+                    classification = lotatc.Classification(
+                        lotatc.Classifications.neutral,
+                        lotatc.Dimensions.land_installation
+                    )
+                )
+                drawings.append(drawing)
+        
+        lotatc_layer = lotatc.LotATC(
+            author="wonkotron",
+            name="Inftrastructure",
+            drawings=drawings
         )
-    )
-    
-    
-    kmz_templates = [blufor_army, blufor_air_force, blufor_navy, pla_ground_forces, pla_air_force, pla_navy]
-    generate_lotatc_tlaw(gmap_url, kmz_json_path, lotatc_json_path, kmz_templates)
+        lotatc_layers.append(lotatc_layer)
+
+for lotatc_layer in lotatc_layers:
+    json_path = ".\\output\\{0}_{1}.json".format(lotatc_layer.name, lotatc_layer.author)
+    lotatc_layer.save_json(json_path)
+
+print("done")
