@@ -22,7 +22,7 @@ class Brigade():
         # Unit Position (from campaign map)
         position: list = [],                                # floats in the form [latitude, longitude]
         
-        # Unit Deployment
+        # Unit Deployment (defined by subclass)
         maneuverability: float = 500,                       # determines radius of zone in which the HQ will be randomly placed (meters)
         advance_direction: float = 0,                       # direction of the central advancement vector (degrees True)
         advance_distance_max: float = 50000,                # maxium advancement distance (meters) of any subordinate unit
@@ -68,7 +68,7 @@ class Brigade():
         Example:
             Logistics command capability are DESTROYED, so all units retreat to near Brigade HQ
 
-
+            (0% * 0%) * 50km) = 0 km, return advance_distance_min
         """
         distance = max((self.status_command * self.status_logistics) * self.advance_distance_max, self.advance_distance_min)
         return distance
