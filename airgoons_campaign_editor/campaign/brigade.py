@@ -7,7 +7,9 @@ class Brigade(Formation):
     def __init__(
         self,
         name: str = "<DEFAULT BRIGADE>",
-        
+        parent: Formation = None,
+        children: list = [],
+
         # Unit Status (from campaign force tracker)
         status_recon: Status = Status.GREEN,                # recon unit deployment capability
         status_manuever: Status = Status.GREEN,             # maneuver element (e.g. infantry or tank battalion) deployment capability
@@ -18,7 +20,14 @@ class Brigade(Formation):
         # From campaign map
         position: list = [0, 0]
     ):
-        super().__init__(name, type=FormationType.BRIGADE, classification=Classification.COMMAND, position=position)
+        super().__init__(
+            name,
+            type=FormationType.BRIGADE,
+            classification=Classification.COMMAND,
+            parent=parent,
+            children=children,
+            position=position
+        )
 
         self.status_recon = status_recon
         self.status_manuever = status_manuever

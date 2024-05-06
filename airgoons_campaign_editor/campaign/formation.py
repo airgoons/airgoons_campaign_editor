@@ -25,7 +25,7 @@ class Formation():
         classification: Classification = Classification.COMMAND,
         
         parent = None,                          # parent formation
-        children: list = [],                    # list of subordinate formations
+        children: list = list(),                    # list of subordinate formations
     
         position: list = [0,0],                 # floats in the form [latitude, longitude]
 
@@ -48,9 +48,19 @@ class Formation():
         self.advance_distance_min = advance_distance_min
         self.advance_cone_angle = advance_cone_angle
 
-    def set_position(self, latitude, longitude):
-        self.position = [latitude, longitude]
+        if self.parent is not None:
+            Formation.add_child(parent, self)
 
-    def best_deployment_distance(self):
+    @staticmethod
+    def add_child(parent, child):
+        parent.children.append(child)
+
+    @staticmethod
+    def set_position(formation, latitude, longitude):
+        formation.position = [latitude, longitude]
+
+    @staticmethod
+    def best_deployment_distance(formation):
         """Override in subclass"""
-        return self.advance_distance_max
+        return formation.advance_distance_max
+
