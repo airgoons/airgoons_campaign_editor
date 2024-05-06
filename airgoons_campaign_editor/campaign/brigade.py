@@ -1,8 +1,9 @@
-import formation
+from formation import FormationType, Formation
 from unit_status import Status
 from unit_classification import Classification
 
-class Brigade(formation.Formation):
+class Brigade(Formation):
+    """Brigade level abstraction requiring further implementation at the campaign specific level"""
     def __init__(
         self,
         name: str = "<DEFAULT BRIGADE>",
@@ -13,8 +14,11 @@ class Brigade(formation.Formation):
         status_air_defense: Status = Status.GREEN,          # air defense deployment capability
         status_logistics: Status = Status.GREEN,            # logistics deployment capability
         status_command: Status = Status.GREEN,              # command deployment capability
+
+        # From campaign map
+        position: list = [0, 0]
     ):
-        super().__init__(name, formation.FormationType.BRIGADE)
+        super().__init__(name, type=FormationType.BRIGADE, classification=Classification.COMMAND, position=position)
 
         self.status_recon = status_recon
         self.status_manuever = status_manuever
