@@ -1,6 +1,6 @@
 from enum import Enum
 
-class Status(Enum):
+class Status(int, Enum):
     # Unit deployment capability in percentage
     GREEN = 100
     YELLOW = 75
