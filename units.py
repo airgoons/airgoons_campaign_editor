@@ -154,12 +154,12 @@ class PLATOON(Unit):
         return self._unit_type
     
     @property
-    def Vehicles(self) -> List[Vehicle]:
+    def Vehicles(self) -> List[dcs.unittype.VehicleType]:
         return self._vehicles
         
-    def __init__(self, unit_type: UnitType, vehicles: List[dcs.unittype.VehileType]):
+    def __init__(self, unit_type: UnitType, vehicles: List[dcs.unittype.VehicleType]):
         self._unit_type = unit_type
         self._vehicles = vehicles
 
-    def add_vehicle(self, vehicle: dcs.unittype.VehileType):
+    def add_vehicle(self, vehicle: dcs.unittype.VehicleType):
         self._vehicles.append(vehicle)
