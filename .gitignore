@@ -9,3 +9,6 @@ venv/
 
 #python
 *.pyc
+
+#visio
+*.vsdx
