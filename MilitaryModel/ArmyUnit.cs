@@ -1,4 +1,4 @@
-﻿namespace MilitaryModel.ArmyModel
+﻿namespace MilitaryModel
 {
     public enum ArmyUnitEchelon {
         FRONT,
@@ -23,7 +23,9 @@
         RECONNAISSANCE,
         AMPHIB_ARMOR,
         AMPHIB_MECHINF,
-        AMPHIB_RECON
+        AMPHIB_RECON,
+        LOGISTICS,
+        AIR_DEFENSE
     }
 
     public enum ArmyUnitAssignment {
@@ -40,21 +42,66 @@
         }
     }
 
+    public class VehicleAllocation {
+        public string VehicleType { get; }  // TODO:  replace with reference to python class
+        public int Count { get; }
+
+        public VehicleAllocation(string type, int count) {
+            VehicleType = type;
+            Count = count;
+        }
+    }
+
     public abstract class ArmyUnit {
         public abstract ArmyUnitEchelon Echelon { get; }
         public abstract ArmyUnitType Type { get; }
+
+        protected string? _name = null;
+        public string? Name => _name;
         
         protected List<SubordinateAssignment> _subordinates = new();
         public IReadOnlyList<SubordinateAssignment> Subordinates => _subordinates;
+        public void AddSubordinate(ArmyUnit subordinate, ArmyUnitAssignment assignment) {
+            var subordinateAssignment = new SubordinateAssignment(subordinate, assignment);
+            AddSubordinate(subordinateAssignment);
+        }
+        public void AddSubordinate(SubordinateAssignment subordinate) {
+            _subordinates.Add(subordinate);
+        }
+        public void AddSubordinates(int count, Type typeOfArmyUnit, ArmyUnitAssignment assignment) {
+            if (!typeof(ArmyUnit).IsAssignableFrom(typeOfArmyUnit)) {
+                throw new ArgumentException("typeOfArmyUnit must derive from ArmyUnit");
+            }
+            else {
+                foreach (var _ in Enumerable.Range(0, count)) {
+                    var unit = (ArmyUnit)Activator.CreateInstance(typeOfArmyUnit)!;
+                    AddSubordinate(unit, assignment);
+                }
+            }
+        }
+
         public void SetSubordinates(List<SubordinateAssignment> subordinates) {
             _subordinates = subordinates;
+        }
+
+        protected List<VehicleAllocation> _vehicleAllocations = new();
+        public IReadOnlyList<VehicleAllocation> VehicleAllocations => _vehicleAllocations;
+        public void AddVehicle(string type, int count) {
+            var allocation = new VehicleAllocation(type, count);
+            AddVehicle(allocation);
+        }
+        public void AddVehicle(VehicleAllocation allocation) {
+            _vehicleAllocations.Add(allocation);
+        }
+        public void SetVehicles(IReadOnlyList<VehicleAllocation> vehicleAllocations) {
+            _vehicleAllocations = vehicleAllocations.ToList();
         }
     }
 
     public abstract class EchelonArmyUnit : ArmyUnit {
         protected ArmyUnitType _type;
         public override ArmyUnitType Type => _type;
-        protected EchelonArmyUnit(ArmyUnitType type) : base() {
+        protected EchelonArmyUnit(ArmyUnitType type, string name = "DEFAULT") : base() {
             _type = type;
         }
     }
