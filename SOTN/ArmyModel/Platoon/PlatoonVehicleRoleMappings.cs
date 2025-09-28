@@ -1,26 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using MilitaryModel;
 
-namespace SOTN.ArmyModel {
-    public enum VehicleRole {
-        AAA,
-        AMPHIB_TANK,
-        APC,
-        ARMORED_SCOUT_VEHICLE,
-        CAR,
-        GUN,
-        IFV,
-        INFANTRY,
-        LAUNCHER,
-        MANPADS,
-        SAM_Long,
-        SAM_Medium,
-        SAM_Short,
-        TANK,
-        TRUCK
-    }
+namespace SOTN.ArmyModel.Platoon {
     internal static class PlatoonVehicleRoleMappings
     {
         private static readonly ImmutableDictionary<Faction, ImmutableDictionary<ArmyUnitType, IReadOnlyList<VehicleRoleAllocation>>> _map;

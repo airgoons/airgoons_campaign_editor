@@ -1,0 +1,9 @@
+using MilitaryModel;
+using System.Collections.Generic;
+
+namespace SOTN.ArmyModel.Battalion {
+    public class Battalion : AlignedArmyUnit {
+        internal Battalion(ArmyUnitType type, string name, string description, Faction faction, Nation? nation, IReadOnlyList<SubordinateAssignment> subordinates, IReadOnlyList<VehicleAllocation> vehicles)
+            : base(ArmyUnitEchelon.BATTALION, type, name, description, faction, nation, subordinates, vehicles) { }
+    }
+}

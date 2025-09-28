@@ -11,4 +11,9 @@
     <ProjectReference Include="..\MilitaryModel\MilitaryModel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ArmyModel\Brigade\" />
+    <Folder Include="ArmyModel\Division\" />
+  </ItemGroup>
+
 </Project>
