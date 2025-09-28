@@ -62,10 +62,10 @@ namespace PyDCSInterop {
             }
 
             // Diagnostics - show what files we are about to use
-            Console.WriteLine($"Process is 64-bit: {Environment.Is64BitProcess}");
-            Console.WriteLine($"Runtime.PythonDLL -> {Runtime.PythonDLL ?? "(not set)"}");
-            Console.WriteLine($"interpreterRoot -> {interpreterRoot}");
-            Console.WriteLine($"venv root -> {resolvedVenv}");
+            // Console.WriteLine($"Process is 64-bit: {Environment.Is64BitProcess}");
+            // Console.WriteLine($"Runtime.PythonDLL -> {Runtime.PythonDLL ?? "(not set)"}");
+            // Console.WriteLine($"interpreterRoot -> {interpreterRoot}");
+            // Console.WriteLine($"venv root -> {resolvedVenv}");
 
             // Ensure the interpreter root has the stdlib we expect.
             var interpreterLib = Path.Combine(interpreterRoot, "Lib");
@@ -99,8 +99,8 @@ namespace PyDCSInterop {
             PythonEngine.PythonHome = interpreterRoot;
             PythonEngine.PythonPath = pythonPathValue;
 
-            Console.WriteLine($"Environment PYTHONHOME = {Environment.GetEnvironmentVariable("PYTHONHOME")}");
-            Console.WriteLine($"Environment PYTHONPATH = {Environment.GetEnvironmentVariable("PYTHONPATH")}");
+            // Console.WriteLine($"Environment PYTHONHOME = {Environment.GetEnvironmentVariable("PYTHONHOME")}");
+            // Console.WriteLine($"Environment PYTHONPATH = {Environment.GetEnvironmentVariable("PYTHONPATH")}");
 
             try {
                 PythonEngine.Initialize();
@@ -116,10 +116,10 @@ namespace PyDCSInterop {
                 using (Py.GIL()) {
                     dynamic sys = Py.Import("sys");
                     sys.path.insert(0, interpreterDlls); // interpreterDlls = Path.Combine(interpreterRoot, "DLLs")
-                    Console.WriteLine($"Inserted interpreter DLLs into sys.path: {interpreterDlls}");
+                    // Console.WriteLine($"Inserted interpreter DLLs into sys.path: {interpreterDlls}");
                 }
             } catch (Exception ex) {
-                Console.WriteLine($"Warning: failed to insert interpreterDLLs into sys.path: {ex.Message}");
+                // Console.WriteLine($"Warning: failed to insert interpreterDLLs into sys.path: {ex.Message}");
             }
 
             // IMPORT: show why import fails and try a safe fallback
@@ -130,17 +130,17 @@ namespace PyDCSInterop {
                     _dcs = Py.Import("dcs");
                 } catch (PythonException ex) {
                     // Print the Python exception and sys.path to help debugging
-                    Console.WriteLine("Python import 'dcs' failed:");
-                    Console.WriteLine(ex.ToString());
-                    Console.WriteLine("Python runtime sys.path:");
+                    // Console.WriteLine("Python import 'dcs' failed:");
+                    // Console.WriteLine(ex.ToString());
+                    // Console.WriteLine("Python runtime sys.path:");
                     try {
-                        Console.WriteLine(string.Join(";", sys.path));
+                        // Console.WriteLine(string.Join(";", sys.path));
                     } catch { /* ignore */ }
 
                     // Fallback: if pydcsSrc is "...\\src\\pydcs" maybe the package layout requires parent folder.
                     var pydcsParent = Path.GetDirectoryName(pydcsSrc);
                     if (!string.IsNullOrEmpty(pydcsParent) && Directory.Exists(pydcsParent) && !pythonPathEntries.Contains(pydcsParent)) {
-                        Console.WriteLine($"Attempting fallback by prepending parent path: {pydcsParent}");
+                        // Console.WriteLine($"Attempting fallback by prepending parent path: {pydcsParent}");
                         // update environment + pythonnet PythonPath
                         pythonPathEntries.Insert(0, pydcsParent);
                         pythonPathValue = string.Join(";", pythonPathEntries);
@@ -157,8 +157,8 @@ namespace PyDCSInterop {
                         try {
                             _dcs = Py.Import("dcs");
                         } catch (PythonException ex2) {
-                            Console.WriteLine("Retry import 'dcs' after fallback failed:");
-                            Console.WriteLine(ex2.ToString());
+                            // Console.WriteLine("Retry import 'dcs' after fallback failed:");
+                            // Console.WriteLine(ex2.ToString());
                             throw new InvalidOperationException("Failed to import 'dcs' module after fallback. See inner exception for Python details.", ex2);
                         }
                     } else {
@@ -173,9 +173,9 @@ namespace PyDCSInterop {
             // Print interpreter view for verification
             using (Py.GIL()) {
                 dynamic sys = Py.Import("sys");
-                Console.WriteLine($"sys.executable: {sys.executable}");
-                Console.WriteLine($"sys.prefix: {sys.prefix}");
-                Console.WriteLine($"sys.path: {string.Join(";", sys.path)}");
+                // Console.WriteLine($"sys.executable: {sys.executable}");
+                // Console.WriteLine($"sys.prefix: {sys.prefix}");
+                // Console.WriteLine($"sys.path: {string.Join(";", sys.path)}");
             }
         }
 
@@ -198,7 +198,7 @@ namespace PyDCSInterop {
                         try {
                             PythonEngine.Shutdown();
                         } catch (PlatformNotSupportedException ex) {
-                            Console.WriteLine($"[WARN] Shutdown issue: {ex}");
+                            // Console.WriteLine($"[WARN] Shutdown issue: {ex}");
                         }
                     }
                 } finally {
