@@ -8,15 +8,47 @@ using SOTN.ArmyModel.Company;
 using SOTN.ArmyModel.Platoon;
 using MilitaryModel;
 using TTS_Data;
-using System.Reflection;
-using System.Collections;
-using System.Linq;
+using SharpKml.Dom;
+using SharpKml.Base;
 
 namespace Utilities {
+
+    public class UnitLocation {
+        public AlignedArmyUnit Unit { get; }
+        public SharpKml.Base.Vector Coordinate { get; }
+        public UnitLocation(AlignedArmyUnit unit, SharpKml.Dom.Point point) {
+            Unit = unit;
+            Coordinate = point.Coordinate;
+        }
+    }
+
+    public class BoundingBox {
+        public string Name { get; }
+        public List<Vector> Coordinates { get; } = new List<Vector>();
+        public BoundingBox(string name, Polygon polygon) {
+            Name = name;
+            var points = new List<Point>();
+
+            // assume no holes in polygon
+            if (polygon?.OuterBoundary?.LinearRing?.Coordinates != null) {
+                foreach (var coordinate in polygon.OuterBoundary.LinearRing.Coordinates) {
+                    Coordinates.Add(coordinate);
+                }
+            }
+
+        }
+    }
+    public class KmlUnitImporterResult {
+        public IReadOnlyList<UnitLocation> UnitLocations { get; }
+        public IReadOnlyList<BoundingBox> BoundingBoxes { get; }
+        public KmlUnitImporterResult(List<UnitLocation> unitLocations, List<BoundingBox> bboxes) {
+            UnitLocations = unitLocations;
+            BoundingBoxes = bboxes;
+        }
+    }
+
     public static class KmlUnitImporter {
-        public static IReadOnlyList<(AlignedArmyUnit, SharpKml.Dom.Point)> Run() {
-            var raw_kmlPath = @"%USERPROFILE%\Downloads\Sample.kml";
-            var kmlPath = Environment.ExpandEnvironmentVariables(raw_kmlPath);
+        public static KmlUnitImporterResult Run(string kmlPath) {
             var kmlFile = KmlDataReader.LoadKmlAsync(kmlPath).Result;
             var placemarks = KmlDataReader.GetPlacemarks(kmlFile);
             var styles = KmlDataReader.GetStyles(kmlFile);
@@ -27,14 +59,22 @@ namespace Utilities {
             var tagsPath = @"E:\dev\rs89_tts\unit_tags\unit_tags.json";
             var unitTags = UnitTag.LoadUnitTags(tagsPath);
 
-            var units = new List<(AlignedArmyUnit, SharpKml.Dom.Point)>();
+            var unitLocations = new List<UnitLocation>();
+            var bboxes = new List<BoundingBox>();
 
             foreach (var placemark in placemarks) {
                 var name = placemark.Name;
 
                 var point = ExtractPointFromGeometry(placemark.Geometry);
-                if (point == null) {
-                    Console.WriteLine($"[WARN] Placemark '{name}' does not contain a Point geometry; skipping.");
+                var polygon = ExtractPolygonFromGeometry(placemark.Geometry);
+                if ((point == null) && polygon == null) {
+                    Console.WriteLine($"[WARN] no supported geometry for '{name}'");
+                    continue;
+                }
+
+                if (polygon != null) {
+                    // we have a bounding box, add to bboxes list and continue
+                    bboxes.Add(new BoundingBox(name, polygon));
                     continue;
                 }
 
@@ -147,7 +187,7 @@ namespace Utilities {
                             break;
                     }
                     if (createdUnit != null) {
-                        units.Add((createdUnit, point));
+                        unitLocations.Add(new UnitLocation(createdUnit, point));
                     }
                 }
                 else {
@@ -155,12 +195,12 @@ namespace Utilities {
                 }
             }
 
-            // Count all created units including nested subordinates
-            int totalUnitCount = CountAllUnits(units.Select(u => u.Item1));
+            // Count all created unitLocations including nested subordinates
+            int totalUnitCount = CountAllUnits(unitLocations.Select(u => u.Unit));
             Console.WriteLine($"Created Units:  {totalUnitCount}");
 
-            // Recursively total vehicle types across all created units and their subordinates
-            var totals = SumAllVehicleTypes(units.Select(u => u.Item1));
+            // Recursively total vehicle types across all created unitLocations and their subordinates
+            var totals = SumAllVehicleTypes(unitLocations.Select(u => u.Unit));
 
             Console.WriteLine();
             Console.WriteLine("Vehicle type totals (descending):");
@@ -168,13 +208,19 @@ namespace Utilities {
                 Console.WriteLine($"- {kv.Key}: {kv.Value}");
             }
 
-            return units;
+            var results = new KmlUnitImporterResult(unitLocations, bboxes);
+            return results;
         }
 
         private static SharpKml.Dom.Point? ExtractPointFromGeometry(SharpKml.Dom.Geometry? geometry) {
             if (geometry == null) return null;
             if (geometry is SharpKml.Dom.Point p) return p;
             else return null;  // only handle point
+        }
+        private static Polygon? ExtractPolygonFromGeometry(SharpKml.Dom.Geometry? geometry) {
+            if (geometry == null) return null;
+            if (geometry is SharpKml.Dom.Polygon p) return p;
+            else return null;  // only handle polygon
         }
 
         // Aggregates vehicle counts for a single unit (recurses into subordinates).
@@ -189,7 +235,7 @@ namespace Utilities {
                 totals[v.VehicleType] = cur + v.Count;
             }
 
-            // Recurse into subordinate units
+            // Recurse into subordinate unitLocations
             var subs = unit.SubordinateAssignments ?? Enumerable.Empty<SubordinateAssignment>();
             foreach (var sa in subs) {
                 if (sa?.Subordinate != null) {
@@ -198,7 +244,7 @@ namespace Utilities {
             }
         }
 
-        // Convenience entry: sum all vehicle types for a list of root units.
+        // Convenience entry: sum all vehicle types for a list of root unitLocations.
         private static Dictionary<string,int> SumAllVehicleTypes(IEnumerable<AlignedArmyUnit> roots) {
             var totals = new Dictionary<string,int>(StringComparer.OrdinalIgnoreCase);
             foreach (var root in roots) {
@@ -207,7 +253,7 @@ namespace Utilities {
             return totals;
         }
 
-        // Recursively count units for a single unit (counts the unit itself + all nested subordinates).
+        // Recursively count unitLocations for a single unit (counts the unit itself + all nested subordinates).
         private static int CountUnits(ArmyUnit? unit) {
             if (unit is null) return 0;
             int count = 1; // count this unit
@@ -222,7 +268,7 @@ namespace Utilities {
             return count;
         }
 
-        // Count all units for a list of root AlignedArmyUnit instances.
+        // Count all unitLocations for a list of root AlignedArmyUnit instances.
         private static int CountAllUnits(IEnumerable<AlignedArmyUnit> roots) {
             int total = 0;
             foreach (var root in roots) {
