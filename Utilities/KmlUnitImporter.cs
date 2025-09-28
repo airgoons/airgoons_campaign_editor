@@ -8,10 +8,13 @@ using SOTN.ArmyModel.Company;
 using SOTN.ArmyModel.Platoon;
 using MilitaryModel;
 using TTS_Data;
+using System.Reflection;
+using System.Collections;
+using System.Linq;
 
 namespace Utilities {
     public static class KmlUnitImporter {
-        public static void Run() {
+        public static IReadOnlyList<(AlignedArmyUnit, SharpKml.Dom.Point)> Run() {
             var raw_kmlPath = @"%USERPROFILE%\Downloads\Sample.kml";
             var kmlPath = Environment.ExpandEnvironmentVariables(raw_kmlPath);
             var kmlFile = KmlDataReader.LoadKmlAsync(kmlPath).Result;
@@ -24,10 +27,16 @@ namespace Utilities {
             var tagsPath = @"E:\dev\rs89_tts\unit_tags\unit_tags.json";
             var unitTags = UnitTag.LoadUnitTags(tagsPath);
 
-            var units = new List<AlignedArmyUnit>();
+            var units = new List<(AlignedArmyUnit, SharpKml.Dom.Point)>();
 
             foreach (var placemark in placemarks) {
                 var name = placemark.Name;
+
+                var point = ExtractPointFromGeometry(placemark.Geometry);
+                if (point == null) {
+                    Console.WriteLine($"[WARN] Placemark '{name}' does not contain a Point geometry; skipping.");
+                    continue;
+                }
 
                 // find style with Id equal to the placemark name
                 var matchingStyle = styles.FirstOrDefault(s => s.Id == name);
@@ -138,7 +147,7 @@ namespace Utilities {
                             break;
                     }
                     if (createdUnit != null) {
-                        units.Add(createdUnit);
+                        units.Add((createdUnit, point));
                     }
                 }
                 else {
@@ -146,16 +155,26 @@ namespace Utilities {
                 }
             }
 
-            Console.WriteLine($"Created Units:  {units.Count}");
+            // Count all created units including nested subordinates
+            int totalUnitCount = CountAllUnits(units.Select(u => u.Item1));
+            Console.WriteLine($"Created Units:  {totalUnitCount}");
 
             // Recursively total vehicle types across all created units and their subordinates
-            var totals = SumAllVehicleTypes(units);
+            var totals = SumAllVehicleTypes(units.Select(u => u.Item1));
 
             Console.WriteLine();
             Console.WriteLine("Vehicle type totals (descending):");
             foreach (var kv in totals.OrderByDescending(k => k.Value)) {
                 Console.WriteLine($"- {kv.Key}: {kv.Value}");
             }
+
+            return units;
+        }
+
+        private static SharpKml.Dom.Point? ExtractPointFromGeometry(SharpKml.Dom.Geometry? geometry) {
+            if (geometry == null) return null;
+            if (geometry is SharpKml.Dom.Point p) return p;
+            else return null;  // only handle point
         }
 
         // Aggregates vehicle counts for a single unit (recurses into subordinates).
@@ -186,6 +205,30 @@ namespace Utilities {
                 AccumulateVehicleTypes(root, totals);
             }
             return totals;
+        }
+
+        // Recursively count units for a single unit (counts the unit itself + all nested subordinates).
+        private static int CountUnits(ArmyUnit? unit) {
+            if (unit is null) return 0;
+            int count = 1; // count this unit
+
+            var subs = unit.SubordinateAssignments ?? Enumerable.Empty<SubordinateAssignment>();
+            foreach (var sa in subs) {
+                if (sa?.Subordinate != null) {
+                    count += CountUnits(sa.Subordinate);
+                }
+            }
+
+            return count;
+        }
+
+        // Count all units for a list of root AlignedArmyUnit instances.
+        private static int CountAllUnits(IEnumerable<AlignedArmyUnit> roots) {
+            int total = 0;
+            foreach (var root in roots) {
+                total += CountUnits(root);
+            }
+            return total;
         }
     }
 }
