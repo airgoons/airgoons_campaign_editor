@@ -1,5 +1,5 @@
 namespace SOTN.ArmyModel {
-    internal static class AlignedArmyUnitFactory {
+    public static class AlignedArmyUnitFactory {
         /// <summary>
         /// Ensure at least one identity is provided and, if a nation is present,
         /// resolve its faction. Returns a resolved, non-null faction plus the

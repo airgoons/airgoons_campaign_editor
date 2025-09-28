@@ -31,5 +31,9 @@ namespace MapData {
         public static ImmutableList<Placemark> GetPlacemarks(KmlFile? kmlFile) {
             return kmlFile?.Root.Flatten().OfType<Placemark>().ToImmutableList() ?? ImmutableList<Placemark>.Empty;
         }
+
+        public static ImmutableList<Style> GetStyles (KmlFile? kmlFile) {
+            return kmlFile?.Root.Flatten().OfType<Style>().ToImmutableList() ?? ImmutableList<Style>.Empty;
+        }
     }
 }
