@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
     <PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />
+    <PackageReference Include="ProjNET" Version="2.1.0" />
     <PackageReference Include="SharpKml.Core" Version="6.1.0" />
   </ItemGroup>
 
