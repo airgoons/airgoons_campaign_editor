@@ -13,19 +13,19 @@ using SharpKml.Base;
 
 namespace Utilities {
 
-    public class UnitLocation {
-        public AlignedArmyUnit Unit { get; }
-        public SharpKml.Base.Vector Coordinate { get; }
-        public UnitLocation(AlignedArmyUnit unit, SharpKml.Dom.Point point) {
-            Unit = unit;
-            Coordinate = point.Coordinate;
-        }
-    }
+    //public class UnitLocation {
+    //    public AlignedArmyUnit Unit { get; }
+    //    public SharpKml.Base.Vector Coordinate { get; }
+    //    public UnitLocation(AlignedArmyUnit unit, SharpKml.Dom.Point point) {
+    //        Unit = unit;
+    //        Coordinate = point.Coordinate;
+    //    }
+    //}
     public class KmlUnitImporterResult {
-        public IReadOnlyList<UnitLocation> UnitLocations { get; }
+        public IReadOnlyList<AlignedArmyUnit> Units { get; }
         public IReadOnlyList<Placemark> BoundingBoxes { get; }
-        public KmlUnitImporterResult(List<UnitLocation> unitLocations, List<Placemark> bboxes) {
-            UnitLocations = unitLocations;
+        public KmlUnitImporterResult(List<AlignedArmyUnit> units, List<Placemark> bboxes) {
+            Units = units;
             BoundingBoxes = bboxes;
         }
     }
@@ -42,7 +42,7 @@ namespace Utilities {
             var tagsPath = @"E:\dev\rs89_tts\unit_tags\unit_tags.json";
             var unitTags = UnitTag.LoadUnitTags(tagsPath);
 
-            var unitLocations = new List<UnitLocation>();
+            var units = new List<AlignedArmyUnit>();
             var bboxes = new List<Placemark>();
 
             foreach (var placemark in placemarks) {
@@ -170,7 +170,8 @@ namespace Utilities {
                             break;
                     }
                     if (createdUnit != null) {
-                        unitLocations.Add(new UnitLocation(createdUnit, point));
+                        createdUnit.SetPosition(point.Coordinate);
+                        units.Add(createdUnit);
                     }
                 }
                 else {
@@ -179,11 +180,11 @@ namespace Utilities {
             }
 
             // Count all created unitLocations including nested subordinates
-            int totalUnitCount = CountAllUnits(unitLocations.Select(u => u.Unit));
+            int totalUnitCount = CountAllUnits(units);
             Console.WriteLine($"Created Units:  {totalUnitCount}");
 
             // Recursively total vehicle types across all created unitLocations and their subordinates
-            var totals = SumAllVehicleTypes(unitLocations.Select(u => u.Unit));
+            var totals = SumAllVehicleTypes(units);
 
             Console.WriteLine();
             Console.WriteLine("Vehicle type totals (descending):");
@@ -191,7 +192,7 @@ namespace Utilities {
                 Console.WriteLine($"- {kv.Key}: {kv.Value}");
             }
 
-            var results = new KmlUnitImporterResult(unitLocations, bboxes);
+            var results = new KmlUnitImporterResult(units, bboxes);
             return results;
         }
 

@@ -1,4 +1,7 @@
-﻿namespace MilitaryModel
+﻿using SharpKml.Base;
+using NetTopologySuite.Geometries;
+
+namespace MilitaryModel
 {
     public enum ArmyUnitEchelon {
         FRONT,
@@ -33,6 +36,12 @@
         HEADQUARTERS_AREA
     }
 
+    public enum DeploymentOrder {
+        COMBAT,
+        HQSAM,
+        NOT_DEPLOYED
+    }
+
     public class SubordinateAssignment {
         public ArmyUnitAssignment Assignment { get; }
         public ArmyUnit Subordinate { get; }
@@ -47,6 +56,15 @@
         public ArmyUnitType UnitType { get; }
         public string? Name { get; }
         public string? Description { get; }
+
+        private Vector? _position = null;
+        public Vector? Position { get; }
+        
+        public double? _heading = null;
+        public double Heading { get; }
+
+        private DeploymentOrder _deploymentOrder = DeploymentOrder.NOT_DEPLOYED;
+        public DeploymentOrder DeploymentOrder { get; }
 
         public IReadOnlyList<SubordinateAssignment> SubordinateAssignments { get; }
         public IReadOnlyList<VehicleAllocation> VehicleAllocations { get; }
@@ -65,6 +83,18 @@
             Description = description;
             SubordinateAssignments = subordinates;
             VehicleAllocations = vehicles;
+        }
+
+        public void SetPosition(Vector position) {
+            _position = position;
+        }
+
+        public void SetHeading(double heading) {
+            _heading = heading;
+        }
+
+        public void SetDeploymentOrder(DeploymentOrder deploymentOrder) {
+            _deploymentOrder = deploymentOrder;
         }
     }
 }
