@@ -140,12 +140,8 @@ namespace Utilities {
                     var resolvedFaction = resolved.ResolvedFaction;
                     var resolvedNation = resolved.ResolvedNation;
 
-                    // Choose a factory / constructor based on echelon.
-                    // If the UnitTag has no echelon set, default to BATTALION.
-                    var echelon = unitEchelon ?? MilitaryModel.ArmyUnitEchelon.BATTALION;
-
                     AlignedArmyUnit? createdUnit = null;
-                    switch (echelon) {
+                    switch (unitEchelon) {
                         case MilitaryModel.ArmyUnitEchelon.DIVISION:
                             createdUnit = DivisionFactory.CreateDivision(resolvedFaction, resolvedNation, unitType, name);
                             break;
@@ -166,7 +162,7 @@ namespace Utilities {
                             createdUnit = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, unitType, name);
                             break;
                         default:
-                            Console.WriteLine($"[WARN] {echelon} factory not implemented [{name}]");
+                            Console.WriteLine($"[WARN] {unitEchelon} factory not implemented [{name}]");
                             break;
                     }
                     if (createdUnit != null) {

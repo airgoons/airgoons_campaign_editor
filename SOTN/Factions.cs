@@ -1,35 +1,7 @@
 ﻿using System.Collections.Immutable;
+using MilitaryModel;
 
 namespace SOTN {
-    public enum Faction {
-        NATO,
-        WarsawPact
-    }
-
-    public enum Nation {
-        // NATO
-        AlliedCommandEuropeMobileForce,
-        Belgium,
-        Canada,
-        Denmark,
-        France,
-        Netherlands,
-        Spain,
-        UnitedKingdom,
-        UnitedStates,
-        WestGermany,
-        Luxembourg,
-        Italy,
-        Norway,
-        Sweden,
-        // Warsaw Pact
-        Czechoslovakia,
-        EastGermany,
-        Poland,
-        SovietUnion,
-        Hungary
-    }
-
     public static class NationInfo {
         // Nation -> short name
         public static readonly ImmutableDictionary<Nation, string> ShortNames;

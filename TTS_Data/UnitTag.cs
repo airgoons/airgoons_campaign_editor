@@ -16,11 +16,7 @@ namespace TTS_Data {
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public ArmyUnitEchelon? UnitFormation { get; set; }
 
-        // Helper to get a non-null formation with a caller-specified default.
-        public ArmyUnitEchelon GetFormationOrDefault(ArmyUnitEchelon defaultFormation) =>
-            UnitFormation ?? defaultFormation;
-
-        public static List<UnitTag> LoadUnitTags(string path, ArmyUnitEchelon? applyDefaultFormation = null) {
+        public static List<UnitTag> LoadUnitTags(string path, ArmyUnitEchelon defaultFormation = ArmyUnitEchelon.NONE_DEFAULT) {
             try {
                 var expanded = Environment.ExpandEnvironmentVariables(path);
                 if (!File.Exists(expanded)) {
@@ -38,9 +34,12 @@ namespace TTS_Data {
                 var tags = JsonSerializer.Deserialize<List<UnitTag>>(json, options) ?? new List<UnitTag>();
 
                 // Optional: substitute a default formation for entries that were null/missing.
-                if (applyDefaultFormation.HasValue) {
-                    foreach (var t in tags) {
-                        if (!t.UnitFormation.HasValue) t.UnitFormation = applyDefaultFormation.Value;
+                foreach (var t in tags) {
+                    if (!t.UnitFormation.HasValue) {
+                        t.UnitFormation = defaultFormation;
+                    }
+                    else {
+                        t.UnitFormation = t.UnitFormation.Value;
                     }
                 }
 

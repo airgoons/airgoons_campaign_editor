@@ -1,8 +1,9 @@
 ﻿using SharpKml.Base;
 using NetTopologySuite.Geometries;
 
-namespace MilitaryModel
-{
+namespace MilitaryModel {
+    
+
     public enum ArmyUnitEchelon {
         FRONT,
         ARMY,
@@ -12,7 +13,8 @@ namespace MilitaryModel
         REGIMENT,
         BATTALION,
         COMPANY,
-        PLATOON
+        PLATOON,
+        NONE_DEFAULT
     }
 
     public enum ArmyUnitType {
@@ -28,7 +30,8 @@ namespace MilitaryModel
         AMPHIB_MECHINF,
         AMPHIB_RECON,
         LOGISTICS,
-        AIR_DEFENSE
+        AIR_DEFENSE,
+        NONE_DEFAULT
     }
 
     public enum ArmyUnitAssignment {
@@ -51,32 +54,38 @@ namespace MilitaryModel
         }
     }
 
-    public class ArmyUnit {
+    public abstract class ArmyUnit {
+
         public ArmyUnitEchelon Echelon { get; }
         public ArmyUnitType UnitType { get; }
         public string? Name { get; }
         public string? Description { get; }
 
         private Vector? _position = null;
-        public Vector? Position { get; }
+        public Vector? Position => _position;
         
         public double? _heading = null;
-        public double Heading { get; }
+        public double? Heading => _heading;
 
         private DeploymentOrder _deploymentOrder = DeploymentOrder.NOT_DEPLOYED;
-        public DeploymentOrder DeploymentOrder { get; }
+        public DeploymentOrder DeploymentOrder => _deploymentOrder;
 
         public IReadOnlyList<SubordinateAssignment> SubordinateAssignments { get; }
         public IReadOnlyList<VehicleAllocation> VehicleAllocations { get; }
+        public Faction Faction { get; }
+        public Nation? Nation { get; }
 
         public ArmyUnit(
             ArmyUnitEchelon echelon,
             ArmyUnitType type,
             string name,
             string description,
+            Faction faction,
+            Nation? nation,
             IReadOnlyList<SubordinateAssignment> subordinates,
             IReadOnlyList<VehicleAllocation> vehicles) {
-
+            Faction = faction;
+            Nation = nation;
             Echelon = echelon;
             UnitType = type;
             Name = name;

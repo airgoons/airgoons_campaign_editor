@@ -1,3 +1,5 @@
+using MilitaryModel;
+
 namespace SOTN.ArmyModel {
     public static class AlignedArmyUnitFactory {
         /// <summary>
