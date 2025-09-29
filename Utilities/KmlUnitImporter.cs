@@ -21,27 +21,10 @@ namespace Utilities {
             Coordinate = point.Coordinate;
         }
     }
-
-    public class BoundingBox {
-        public string Name { get; }
-        public List<Vector> Coordinates { get; } = new List<Vector>();
-        public BoundingBox(string name, Polygon polygon) {
-            Name = name;
-            var points = new List<Point>();
-
-            // assume no holes in polygon
-            if (polygon?.OuterBoundary?.LinearRing?.Coordinates != null) {
-                foreach (var coordinate in polygon.OuterBoundary.LinearRing.Coordinates) {
-                    Coordinates.Add(coordinate);
-                }
-            }
-
-        }
-    }
     public class KmlUnitImporterResult {
         public IReadOnlyList<UnitLocation> UnitLocations { get; }
-        public IReadOnlyList<BoundingBox> BoundingBoxes { get; }
-        public KmlUnitImporterResult(List<UnitLocation> unitLocations, List<BoundingBox> bboxes) {
+        public IReadOnlyList<Placemark> BoundingBoxes { get; }
+        public KmlUnitImporterResult(List<UnitLocation> unitLocations, List<Placemark> bboxes) {
             UnitLocations = unitLocations;
             BoundingBoxes = bboxes;
         }
@@ -60,7 +43,7 @@ namespace Utilities {
             var unitTags = UnitTag.LoadUnitTags(tagsPath);
 
             var unitLocations = new List<UnitLocation>();
-            var bboxes = new List<BoundingBox>();
+            var bboxes = new List<Placemark>();
 
             foreach (var placemark in placemarks) {
                 var name = placemark.Name;
@@ -72,9 +55,9 @@ namespace Utilities {
                     continue;
                 }
 
-                if (polygon != null) {
+                if ((polygon != null) && (point == null)){
                     // we have a bounding box, add to bboxes list and continue
-                    bboxes.Add(new BoundingBox(name, polygon));
+                    bboxes.Add(placemark);
                     continue;
                 }
 
@@ -212,12 +195,12 @@ namespace Utilities {
             return results;
         }
 
-        private static SharpKml.Dom.Point? ExtractPointFromGeometry(SharpKml.Dom.Geometry? geometry) {
+        public static SharpKml.Dom.Point? ExtractPointFromGeometry(SharpKml.Dom.Geometry? geometry) {
             if (geometry == null) return null;
             if (geometry is SharpKml.Dom.Point p) return p;
             else return null;  // only handle point
         }
-        private static Polygon? ExtractPolygonFromGeometry(SharpKml.Dom.Geometry? geometry) {
+        public static Polygon? ExtractPolygonFromGeometry(SharpKml.Dom.Geometry? geometry) {
             if (geometry == null) return null;
             if (geometry is SharpKml.Dom.Polygon p) return p;
             else return null;  // only handle polygon
