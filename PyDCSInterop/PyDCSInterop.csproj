@@ -8,7 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
+    <PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />
     <PackageReference Include="pythonnet" Version="3.0.5" />
+    <PackageReference Include="SharpKml.Core" Version="6.1.0" />
   </ItemGroup>
 
 </Project>
