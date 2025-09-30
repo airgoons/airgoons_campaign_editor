@@ -10,17 +10,19 @@ using MilitaryModel;
 using SharpKml.Dom;
 
 namespace TTSKML {
-    public class KmlUnitImporterResult {
-        public IReadOnlyList<AlignedArmyUnit> Units { get; }
-        public IReadOnlyList<Placemark> BoundingBoxes { get; }
-        public KmlUnitImporterResult(List<AlignedArmyUnit> units, List<Placemark> bboxes) {
-            Units = units;
-            BoundingBoxes = bboxes;
-        }
-    }
+    // we will generate bounding boxes downstream based on input from commanders
+    //public class KmlUnitImporterResult {
+    //    public IReadOnlyList<AlignedArmyUnit> Units { get; }
+        
+    //    //public IReadOnlyList<Placemark> BoundingBoxes { get; }
+    //    //public KmlUnitImporterResult(List<AlignedArmyUnit> units, List<Placemark> bboxes) {
+    //    //    Units = units;
+    //    //    BoundingBoxes = bboxes;
+    //    }
+    //}
 
     public static class KmlUnitImporter {
-        public static KmlUnitImporterResult Run(string kmlPath) {
+        public static IReadOnlyList<AlignedArmyUnit> Run(string kmlPath) {
             var kmlFile = KmlDataReader.LoadKmlAsync(kmlPath).Result;
             var placemarks = KmlDataReader.GetPlacemarks(kmlFile);
             var styles = KmlDataReader.GetStyles(kmlFile);
@@ -32,7 +34,7 @@ namespace TTSKML {
             var unitTags = TTSJSON.UnitTag.LoadUnitTags(tagsPath);
 
             var units = new List<AlignedArmyUnit>();
-            var bboxes = new List<Placemark>();
+            // var bboxes = new List<Placemark>();
 
             foreach (var placemark in placemarks) {
                 var name = placemark.Name;
@@ -44,11 +46,11 @@ namespace TTSKML {
                     continue;
                 }
 
-                if ((polygon != null) && (point == null)){
-                    // we have a bounding box, add to bboxes list and continue
-                    bboxes.Add(placemark);
-                    continue;
-                }
+                //if ((polygon != null) && (point == null)){
+                //    // we have a bounding box, add to bboxes list and continue
+                //    bboxes.Add(placemark);
+                //    continue;
+                //}
 
                 // find style with Id equal to the placemark name
                 var matchingStyle = styles.FirstOrDefault(s => s.Id == name);
@@ -177,8 +179,7 @@ namespace TTSKML {
                 Console.WriteLine($"- {kv.Key}: {kv.Value}");
             }
 
-            var results = new KmlUnitImporterResult(units, bboxes);
-            return results;
+            return units;
         }
 
         public static SharpKml.Dom.Point? ExtractPointFromGeometry(SharpKml.Dom.Geometry? geometry) {
