@@ -51,6 +51,8 @@ namespace MilitaryModel.DeploymentModel {
 
             double dx = P_f0.X - unitPosition.X;
             double dy = P_f0.Y - unitPosition.Y;
+            double distanceToFLOT = Math.Sqrt(dx * dx + dy * dy);
+            double maxRayLength = 2.0 * distanceToFLOT;
             double theta_0 = NormalizeAngle(Math.Atan2(dy, dx) * (180.0 / Math.PI)); // Convert to degrees
             if (double.IsNaN(theta_0))
             {
@@ -66,7 +68,7 @@ namespace MilitaryModel.DeploymentModel {
             for (double sweep = sweepIncrement; sweep <= sweepLimit; sweep += sweepIncrement)
             {
                 double angleCW = NormalizeAngle(theta_0 - sweep);
-                var rayCW = CreateRay(unitPosition, angleCW, 10000);
+                var rayCW = CreateRay(unitPosition, angleCW, maxRayLength);
                 if (!rayCW.Intersects(flotLine))
                 {
                     theta_1 = sweep;
@@ -77,7 +79,7 @@ namespace MilitaryModel.DeploymentModel {
             for (double sweep = sweepIncrement; sweep <= sweepLimit; sweep += sweepIncrement)
             {
                 double angleCCW = NormalizeAngle(theta_0 + sweep);
-                var rayCCW = CreateRay(unitPosition, angleCCW, 10000);
+                var rayCCW = CreateRay(unitPosition, angleCCW, maxRayLength);
                 if (!rayCCW.Intersects(flotLine))
                 {
                     theta_2 = -sweep;
