@@ -1,11 +1,10 @@
 ﻿using PyDCSInterop;
 using NetTopologySuite.Geometries;
 using SharpKml.Dom;
-using SOTN.ArmyModel;
 using MilitaryModel;
 
 namespace TTSKML {
-    public static class KmlToDcs {
+    public static class ProcessKML {
         internal static bool CoordinateInPolygon(SharpKml.Base.Vector coordinate, SharpKml.Dom.Polygon polygon) {
             var result = false;
 
@@ -52,42 +51,15 @@ namespace TTSKML {
             return lon;
         }
 
-        public static void Run(string kmlPath, string venv_path, string pydll_path, string pydcs_extensions_location, string template_path, string output_miz_path) {
-            var kmlUnitImporterResult = KmlUnitImporter.Run(kmlPath);
-            var fronts = MilitaryModel.DeploymentModel.KernelFlotGenerator.GenerateFronts(kmlUnitImporterResult.Units, 500, 18_000, 1, 1, 2);
-
-            var units_to_place = new List<AlignedArmyUnit>();
+        public static IReadOnlyList<ArmyUnit> GenerateUnitTree(IReadOnlyList<ArmyUnit>? units, NetTopologySuite.Geometries.Geometry? fronts, bool debug = true) {
+            var units_to_place = new List<ArmyUnit>();
             var rearAreas = new List<Placemark>();
             var combatAreas = new List<Placemark>();
-
-            // New: collect heading lines for KML export
             var headingLines = new List<(SharpKml.Dom.LineString line, string color, string name)>();
-            // populate bounding box categories
-            if (kmlUnitImporterResult?.BoundingBoxes != null) {
-                foreach (var bbox in kmlUnitImporterResult.BoundingBoxes) {
-                    var name = bbox.Name;
-                    foreach (MilitaryModel.DeploymentOrder order in Enum.GetValues(typeof(MilitaryModel.DeploymentOrder))) {
-                        if (order == MilitaryModel.DeploymentOrder.NOT_DEPLOYED) {
-                            continue;
-                        }
-
-                        var token = order.ToString();
-                        if (name.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0) {
-                            switch (order) {
-                                case MilitaryModel.DeploymentOrder.COMBAT:
-                                    combatAreas.Add(bbox);
-                                    break;
-                                case MilitaryModel.DeploymentOrder.HQSAM:
-                                    rearAreas.Add(bbox);
-                                    break;
-                            }
-                        }
-                    }
-                }
-            }
 
             List<ArmyUnit> everyUnit = new();
-            foreach (var unit in kmlUnitImporterResult.Units) {
+
+            foreach (var unit in units) {
                 var position = unit.Position;
                 if (position == null) { continue; }
 
@@ -130,89 +102,11 @@ namespace TTSKML {
                         }
 
                         headingLines.Add((line, color, u.Name ?? "Unit"));
-                    }
-                }
-
-                
-
-                // determine deployment order
-                bool inRearArea = false;
-                bool inCombatArea = false;
-
-                foreach (var bbox in rearAreas) {
-                    var polygon = KmlUnitImporter.ExtractPolygonFromGeometry(bbox.Geometry);
-                    if (polygon == null) {
-                        Console.WriteLine($"[WARN] null polygon in bounding box: {bbox.Name}");
-                    }
-                    else {
-                        if (CoordinateInPolygon(unit.Position, polygon)) { inRearArea = true; break; }
-                    }
-                }
-                foreach (var bbox in combatAreas) {
-                    var polygon = KmlUnitImporter.ExtractPolygonFromGeometry(bbox.Geometry);
-                    if (polygon == null) {
-                        Console.WriteLine($"[WARN] null polygon in bounding box: {bbox.Name}");
-                    }
-                    else {
-                        if (CoordinateInPolygon(unit.Position, polygon)) { inCombatArea = true; break; }
-                    }
-                }
-
-                var deploymentOrder = MilitaryModel.DeploymentOrder.NOT_DEPLOYED;
-                if (inRearArea) {
-                    if (inCombatArea) {
-                        deploymentOrder = MilitaryModel.DeploymentOrder.COMBAT;
-                    }
-                    else {
-                        deploymentOrder = MilitaryModel.DeploymentOrder.HQSAM;
-                    }
-                }
-                else if (inCombatArea) {
-                    deploymentOrder = MilitaryModel.DeploymentOrder.COMBAT;
-                }
-                else {
-                    // fall through
-                }
-
-                unit.SetDeploymentOrder(deploymentOrder);
-                if (unit.DeploymentOrder != MilitaryModel.DeploymentOrder.NOT_DEPLOYED) {
-                    units_to_place.Add(unit);
+                    }   
                 }
             }
-
-            try {
-                // initialize pydcs
-                var pydcs = new PyDCS(venv_path, pydll_path, true, pydcs_extensions_location);
-                var dcs = pydcs.DCS;
-                var pydcs_extensions = pydcs.PydcsExtensions;
-
-                var terrain = dcs.terrain.GermanyColdWar();
-                var mission = dcs.Mission(terrain);
-
-
-                mission.load_file(template_path);
-
-                foreach (var unit in units_to_place) {
-                    var lat = unit.Position?.Latitude;
-                    var lon = unit.Position?.Longitude;
-                    var order = unit.DeploymentOrder;
-
-                    // add zone for top level
-                    // add zones for HQ platoons
-                    if (order == MilitaryModel.DeploymentOrder.COMBAT) {
-                        // recursively add zones for forward deployable subordinates and their HQ zones according to deployment doctrine
-                    }
-                }
-                //    var dcs_pos = dcs.mapping.Point.from_latlng(dcs.mapping.LatLng(lat, lng), terrain);
-                //    var dcs_zone = mission.triggers.add_triggerzone(dcs_pos, 250, false, unitLocation.Unit.Name);
-
-                // export data to files
-                ExportKml(everyUnit, fronts, headingLines);
-                mission.save(output_miz_path);
-            }
-            finally {
-                PyDCS.ShutdownPythonRuntime();
-            }
+            if (debug) { ExportKml(everyUnit, fronts, headingLines); }
+            return everyUnit;
         }
 
         private static void ExportKml(List<ArmyUnit> units, NetTopologySuite.Geometries.Geometry? fronts, List<(SharpKml.Dom.LineString line, string color, string name)> headingLines) {
@@ -229,7 +123,6 @@ namespace TTSKML {
                         Coordinate = new SharpKml.Base.Vector(unit.Position.Latitude, unit.Position.Longitude)
                     }
                 };
-                // kmlDoc.AddFeature(placemark);
             }
 
             // Add front linestring placemarks
