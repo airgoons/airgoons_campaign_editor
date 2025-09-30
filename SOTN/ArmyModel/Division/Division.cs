@@ -1,5 +1,4 @@
 using MilitaryModel;
-using System.Collections.Generic;
 
 namespace SOTN.ArmyModel.Division {
     public class Division : AlignedArmyUnit {

@@ -1,8 +1,4 @@
 ﻿using Python.Runtime;
-using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace PyDCSInterop {
     // Minimal, deterministic Python initialization for a known working venv and DLL.

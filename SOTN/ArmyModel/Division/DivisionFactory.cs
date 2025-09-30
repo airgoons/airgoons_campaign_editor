@@ -1,8 +1,6 @@
 using MilitaryModel;
 using SOTN.ArmyModel.Brigade;
 using SOTN.ArmyModel.Platoon;
-using System;
-using System.Collections.Generic;
 
 namespace SOTN.ArmyModel.Division {
     public static class DivisionFactory {

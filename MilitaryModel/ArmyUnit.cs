@@ -1,5 +1,4 @@
 ﻿using SharpKml.Base;
-using NetTopologySuite.Geometries;
 
 namespace MilitaryModel {
     

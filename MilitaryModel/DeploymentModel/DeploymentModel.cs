@@ -1,10 +1,6 @@
-﻿using NetTopologySuite;
-using NetTopologySuite.Geometries;
+﻿using NetTopologySuite.Geometries;
 using NetTopologySuite.Operation.Distance;
-using NetTopologySuite.Operation.Union;
-using System;
-using System.Linq;
-using System.Collections.Generic;
+
 using SharpKml.Base;
 
 namespace MilitaryModel.DeploymentModel {

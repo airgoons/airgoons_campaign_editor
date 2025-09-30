@@ -9,7 +9,6 @@ using SOTN.ArmyModel.Platoon;
 using MilitaryModel;
 using TTS_Data;
 using SharpKml.Dom;
-using SharpKml.Base;
 
 namespace Utilities {
 

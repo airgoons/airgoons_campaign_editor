@@ -1,8 +1,6 @@
 using MilitaryModel;
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
+
 
 namespace SOTN.ArmyModel {
     public static class VehicleAggregationExtensions {

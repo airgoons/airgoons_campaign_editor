@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using PyDCSInterop;
+﻿using PyDCSInterop;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Features;
 using SharpKml.Dom;
-using System.ComponentModel.Design;
-using System.ComponentModel;
 using SOTN.ArmyModel;
 using MilitaryModel;
 

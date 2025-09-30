@@ -1,5 +1,4 @@
 using MilitaryModel;
-using System.Collections.Generic;
 
 namespace SOTN.ArmyModel.Battalion {
     public class Battalion : AlignedArmyUnit {
