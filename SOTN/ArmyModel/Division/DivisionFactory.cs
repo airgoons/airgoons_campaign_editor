@@ -20,7 +20,7 @@ namespace SOTN.ArmyModel.Division {
             }
             for (int i = 0; i < 5; i++) {
                 var subordinateName = $"{name}/HQ/{i}PLT";
-                var platoon = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, ArmyUnitType.HEADQUARTERS, name);
+                var platoon = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, ArmyUnitType.HEADQUARTERS, subordinateName);
                 subordinateAssignments.Add(new SubordinateAssignment(platoon, ArmyUnitAssignment.HEADQUARTERS_AREA));
             }
 
