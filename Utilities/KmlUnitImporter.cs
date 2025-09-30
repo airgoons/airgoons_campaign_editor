@@ -11,15 +11,6 @@ using TTS_Data;
 using SharpKml.Dom;
 
 namespace Utilities {
-
-    //public class UnitLocation {
-    //    public AlignedArmyUnit Unit { get; }
-    //    public SharpKml.Base.Vector Coordinate { get; }
-    //    public UnitLocation(AlignedArmyUnit unit, SharpKml.Dom.Point point) {
-    //        Unit = unit;
-    //        Coordinate = point.Coordinate;
-    //    }
-    //}
     public class KmlUnitImporterResult {
         public IReadOnlyList<AlignedArmyUnit> Units { get; }
         public IReadOnlyList<Placemark> BoundingBoxes { get; }
