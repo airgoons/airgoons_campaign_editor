@@ -20,7 +20,7 @@ namespace MilitaryModel.DeploymentModel {
             double sigmaMeters = 18_000.0,        // gaussian kernel bandwidth (meters)
             double kernelWeightMultiplier = 1.0,// additional global scale on weights
             double minLengthMeters = 1.0,     // minimal front length to keep
-            int smoothingIterations = 2       // Chaikin smoothing iterations (0 = none)
+            int smoothingIterations = 0       // Chaikin smoothing iterations (0 = none)
         ) {
             if (units == null || units.Count == 0) return null;
 
@@ -179,7 +179,7 @@ namespace MilitaryModel.DeploymentModel {
                         bool extendAtStart = cList.First().Y >= cList.Last().Y;
                         // prefer a northward fallback if average vector degenerates
                         var fallback = (0.0, 1.0);
-                        var (ux, uy) = ComputeOutwardUnit(cList, extendAtStart, 50, fallback);
+                        var (ux, uy) = ComputeOutwardUnit(cList, extendAtStart, 10, fallback);
                         var dx = ux * extendMeters;
                         var dy = uy * extendMeters;
                         if (extendAtStart) {
@@ -590,7 +590,7 @@ namespace MilitaryModel.DeploymentModel {
 
             // Group units by faction (only factions with at least one positioned unit)
             var factionGroups = units
-                .Where(u => u != null && u.Position != null && u.Faction != null)
+                .Where(u => u != null && u.Position != null)
                 .GroupBy(u => u.Faction)
                 .Select(g => new { Faction = g.Key, Units = g.ToList() })
                 .ToList();
