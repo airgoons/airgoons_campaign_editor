@@ -2,7 +2,7 @@
 using System.Text.Json.Serialization;
 using MilitaryModel;
 
-namespace TTS_Data {
+namespace TTSKML.TTSJSON {
     public class UnitTag {
         [JsonPropertyName("filename")]
         public string Filename { get; set; } = string.Empty;

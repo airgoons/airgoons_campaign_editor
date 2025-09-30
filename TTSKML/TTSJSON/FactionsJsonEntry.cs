@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text.Json.Serialization;
 
-namespace TTS_Data {
+namespace TTSKML.TTSJSON {
     public class FactionsJsonEntry {
         [JsonPropertyName("front_png")]
         public string? FrontPng { get; set; }

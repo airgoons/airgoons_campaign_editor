@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
-namespace TTS_Data {
+namespace TTSKML.TTSJSON {
     public static class FactionsRepository {
         public record UnitRecord(
             string Faction,

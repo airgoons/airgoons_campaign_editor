@@ -7,10 +7,9 @@ using SOTN.ArmyModel.Battalion;
 using SOTN.ArmyModel.Company;
 using SOTN.ArmyModel.Platoon;
 using MilitaryModel;
-using TTS_Data;
 using SharpKml.Dom;
 
-namespace Utilities {
+namespace TTSKML {
     public class KmlUnitImporterResult {
         public IReadOnlyList<AlignedArmyUnit> Units { get; }
         public IReadOnlyList<Placemark> BoundingBoxes { get; }
@@ -27,10 +26,10 @@ namespace Utilities {
             var styles = KmlDataReader.GetStyles(kmlFile);
 
             var factionsPath = @"E:\dev\rs89_tts\Red_Strike_V1_2.vmod_factions.json";
-            var factionsData = FactionsRepository.LoadFlattened(factionsPath);
+            var factionsData = TTSJSON.FactionsRepository.LoadFlattened(factionsPath);
 
             var tagsPath = @"E:\dev\rs89_tts\unit_tags\unit_tags.json";
-            var unitTags = UnitTag.LoadUnitTags(tagsPath);
+            var unitTags = TTSJSON.UnitTag.LoadUnitTags(tagsPath);
 
             var units = new List<AlignedArmyUnit>();
             var bboxes = new List<Placemark>();
@@ -78,7 +77,7 @@ namespace Utilities {
                 }
 
                 // match frontPng with a UnitTag.Filename (compare filenames case-insensitively)
-                UnitTag? matchedTag = null;
+                TTSJSON.UnitTag? matchedTag = null;
                 if (!string.IsNullOrWhiteSpace(frontPng)) {
                     var frontName = Path.GetFileName(frontPng) ?? frontPng;
                     matchedTag = unitTags.FirstOrDefault(t =>

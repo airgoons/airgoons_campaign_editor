@@ -4,7 +4,7 @@ using SharpKml.Dom;
 using SOTN.ArmyModel;
 using MilitaryModel;
 
-namespace Utilities {
+namespace TTSKML {
     public static class KmlToDcs {
         internal static bool CoordinateInPolygon(SharpKml.Base.Vector coordinate, SharpKml.Dom.Polygon polygon) {
             var result = false;
