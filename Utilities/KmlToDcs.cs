@@ -140,6 +140,54 @@ namespace Utilities {
 
                 mission.save(output_miz_path);
 
+                var fronts = MilitaryModel.DeploymentModel.KernelFlotGenerator.GenerateFronts(kmlUnitImporterResult.Units);
+
+                // --- Export units and fronts as KML ---
+                var kmlDoc = new SharpKml.Dom.Document();
+                kmlDoc.Name = "Units and Fronts";
+
+                // Add unit placemarks
+                foreach (var unit in kmlUnitImporterResult.Units) {
+                    if (unit.Position == null) continue;
+                    var placemark = new SharpKml.Dom.Placemark {
+                        Name = unit.Name,
+                        Geometry = new SharpKml.Dom.Point {
+                            Coordinate = new SharpKml.Base.Vector(unit.Position.Latitude, unit.Position.Longitude)
+                        }
+                    };
+                    kmlDoc.AddFeature(placemark);
+                }
+
+                // Add front linestring placemarks
+                if (fronts != null) {
+                    var lines = MilitaryModel.DeploymentModel.KernelFlotGenerator.ExtractLineStrings(fronts) as System.Collections.IEnumerable;
+                    if (lines != null) {
+                        int idx = 1;
+                        foreach (var lineObj in lines) {
+                            var line = lineObj as NetTopologySuite.Geometries.LineString;
+                            if (line == null) continue;
+                            var coords = new SharpKml.Dom.CoordinateCollection();
+                            foreach (var c in line.Coordinates) {
+                                coords.Add(new SharpKml.Base.Vector(c.Y, c.X)); // KML uses lat,lon
+                            }
+                            var placemark = new SharpKml.Dom.Placemark {
+                                Name = $"Front {idx}",
+                                Geometry = new SharpKml.Dom.LineString {
+                                    Coordinates = coords
+                                }
+                            };
+                            kmlDoc.AddFeature(placemark);
+                            idx++;
+                        }
+                    }
+                }
+
+                // Save KML to file
+                var kml = new SharpKml.Dom.Kml { Feature = kmlDoc };
+                using (var stream = System.IO.File.Create("output_fronts.kml")) {
+                    var serializer = SharpKml.Engine.KmlFile.Create(kml, false);
+                    serializer.Save(stream);
+                }
             }
             finally {
                 PyDCS.ShutdownPythonRuntime();
