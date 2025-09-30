@@ -13,14 +13,16 @@ namespace SOTN.ArmyModel.Company {
             var subordinateDefs = PlatoonAssignmentsMapping.GetAssignments(type);
 
             var subordinateAssignments = new List<SubordinateAssignment>();
-            foreach (var def in subordinateDefs)
-            {
-                for (int i = 0; i < def.Count; i++)
-                {
-                    var subordinateName = $"{name}/{i}PLT_{type.ToString()}";
-                    var platoon = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, def.PlatoonType, subordinateName);
-                    subordinateAssignments.Add(new SubordinateAssignment(platoon, def.Assignment));
-                }
+            for (int i = 0; i < 4; i++) {
+                var subordinateName = $"{name}/{i}PLT";
+                var company = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, type, subordinateName);
+                subordinateAssignments.Add(new SubordinateAssignment(company, ArmyUnitAssignment.FORWARD_DEPLOYABLE));
+            }
+
+            for (int i = 0; i < 1; i++) {
+                var subordinateName = $"{name}/HQ/{i}PLT";
+                var platoon = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, ArmyUnitType.HEADQUARTERS, subordinateName);
+                subordinateAssignments.Add(new SubordinateAssignment(platoon, ArmyUnitAssignment.HEADQUARTERS_AREA));
             }
 
             return new Company(type, name, description, resolvedFaction, resolvedNation, subordinateAssignments, Array.Empty<VehicleAllocation>());
