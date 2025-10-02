@@ -39,8 +39,7 @@ namespace SOTN.DCS {
                 if (unit.Echelon == ArmyUnitEchelon.PLATOON) {
                     if ((unit.DeploymentOrder == DeploymentOrder.COMBAT) || (unit.DeploymentOrder == DeploymentOrder.HQSAM)) {
                         if (unit.Assignment == ArmyUnitAssignment.HEADQUARTERS_AREA) {
-                            // TODO:  Resolve issues with statics.  // CreateVehicleGroup(dcs, miz, unit, true);
-                            CreateVehicleGroup(dcs, miz, unit, false);
+                            CreateVehicleGroup(dcs, miz, unit, true);                            
                         }
                         else {
                             CreateVehicleGroup(dcs, miz, unit, false);
@@ -71,29 +70,52 @@ namespace SOTN.DCS {
             List<dynamic> vehicleTypes = new();
             foreach (var vehicleAllocation in unit.VehicleAllocations) {
                 var vehicleType = PyDCS.ResolvePathOnPyObject(dcs, vehicleAllocation.VehicleType);
-                if (vehicleType == null) continue;
+                if (vehicleType == null) {
+                    Console.WriteLine($"null vehicleType: {vehicleAllocation.VehicleType}");
+                    continue;
+                }
 
                 for (int i = 0; i < vehicleAllocation.Count; ++i) {
                     vehicleTypes.Add(vehicleType);
                 }
             }
 
-            dynamic stats_start = miz.stats();
-
             if (!staticGroup) {
                 miz.vehicle_group_platoon(country, "wonko", vehicleTypes, position, unit.Heading);
             }
             else {
-                dynamic initial_vehicle = vehicleTypes.First();
-                var groupName = "wonko_static";
-                
-                dynamic sg = miz.static_group(country, groupName, initial_vehicle, position, unit.Heading);
-                for(int i = 1; i < vehicleTypes.Count; ++i) {
-                    dynamic s = dcs.unit.Static(miz.next_unit_id(), groupName, vehicleTypes[i], miz.terrain);
-                    sg.add_unit(s);
-                }
+                CreateStaticVehicleGroup(dcs, miz, unit, country, position, vehicleTypes);
             }
-            dynamic stats_end = miz.stats();
+        }
+
+        private static void CreateStaticVehicleGroup(dynamic dcs, dynamic miz, ArmyUnit unit, dynamic country, dynamic position, List<dynamic> vehicleTypes, double spacing = 10) {
+            dynamic staticPoint = dcs.point.StaticPoint(position);
+
+            // minimum spacing is 10 meters for my own sanity
+            var enforcedSpacing = Math.Max(spacing, 10);
+            var headingRadians = (unit.Heading.Value - 90) * Math.PI / 180.0;
+            var deltaX = enforcedSpacing * Math.Cos(headingRadians);
+            var deltaY = enforcedSpacing * Math.Sin(headingRadians);
+
+            var groupName = "wonko_static";
+            // thanks ralree  https://github.com/ralreegorganon/calvinball/blob/cefdb8a8d974337fc03d53e934a17b7570c8ee6d/calvinball/mission.py#L232
+            
+            var sg = dcs.unitgroup.StaticGroup(miz.next_unit_id(), groupName);
+
+            for (int i = 0; i < vehicleTypes.Count; ++i) {
+                var s = dcs.unit.Static(miz.next_unit_id(), groupName, vehicleTypes[i], miz.terrain);
+                s.position.x = position.x + (i * deltaX);
+                s.position.y = position.y + (i * deltaY);
+
+                s.heading = unit.Heading;
+
+                sg.add_unit(s);
+            }
+            sg.hidden = false;
+            sg.dead = false;
+            sg.add_point(staticPoint);
+
+            country.add_static_group(sg);
         }
     }
 }
