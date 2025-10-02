@@ -319,7 +319,7 @@ namespace PyDCSInterop {
         // Walk upward from the current working directory to find a directory that contains
         // either a directory named `packageName` (e.g. pydcs_extensions) or a top-level __init__.py.
         // Returns the directory path if found, otherwise null.
-        private static string? FindRepoRootContaining(string packageName) {
+        private static string FindRepoRootContaining(string packageName) {
             try {
                 var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
                 while (dir != null) {
@@ -341,6 +341,17 @@ namespace PyDCSInterop {
                 // best-effort; if anything fails just return null
             }
             return null;
+        }
+
+        public static PyObject? ResolvePathOnPyObject(PyObject root, string dottedPath) {
+            var parts = dottedPath.Split('.');
+            if (parts.Length == 0) throw new ArgumentException($"invalid dottedPath: {nameof(dottedPath)}");
+
+            PyObject cur = root;
+            for (int i = 1; i < parts.Length; ++i) {
+                cur = cur.GetAttr(parts[i]);
+            }
+            return cur;
         }
     }
 }

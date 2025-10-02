@@ -24,6 +24,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PyDCSInterop", "PyDCSIntero
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TTSKML", "TTSKML\TTSKML.csproj", "{4306019F-CE1F-453D-B07D-99E1796801E6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ACEDCS", "ACEDCS\ACEDCS.csproj", "{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -80,6 +82,14 @@ Global
 		{4306019F-CE1F-453D-B07D-99E1796801E6}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4306019F-CE1F-453D-B07D-99E1796801E6}.Release|x64.ActiveCfg = Release|Any CPU
 		{4306019F-CE1F-453D-B07D-99E1796801E6}.Release|x64.Build.0 = Release|Any CPU
+		{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}.Debug|x64.Build.0 = Debug|Any CPU
+		{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}.Release|x64.ActiveCfg = Release|Any CPU
+		{6B82D8FA-9466-4485-9BCD-FCCA32B358E1}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
