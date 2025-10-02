@@ -10,19 +10,8 @@ using MilitaryModel;
 using SharpKml.Dom;
 
 namespace TTSKML {
-    // we will generate bounding boxes downstream based on input from commanders
-    //public class KmlUnitImporterResult {
-    //    public IReadOnlyList<AlignedArmyUnit> Units { get; }
-        
-    //    //public IReadOnlyList<Placemark> BoundingBoxes { get; }
-    //    //public KmlUnitImporterResult(List<AlignedArmyUnit> units, List<Placemark> bboxes) {
-    //    //    Units = units;
-    //    //    BoundingBoxes = bboxes;
-    //    }
-    //}
-
     public static class KmlUnitImporter {
-        public static IReadOnlyList<AlignedArmyUnit> Run(string kmlPath) {
+        public static IReadOnlyList<ArmyUnit> Run(string kmlPath) {
             var kmlFile = KmlDataReader.LoadKmlAsync(kmlPath).Result;
             var placemarks = KmlDataReader.GetPlacemarks(kmlFile);
             var styles = KmlDataReader.GetStyles(kmlFile);
@@ -33,7 +22,7 @@ namespace TTSKML {
             var tagsPath = @"E:\dev\rs89_tts\unit_tags\unit_tags.json";
             var unitTags = TTSJSON.UnitTag.LoadUnitTags(tagsPath);
 
-            var units = new List<AlignedArmyUnit>();
+            var units = new List<ArmyUnit>();
             // var bboxes = new List<Placemark>();
 
             foreach (var placemark in placemarks) {
@@ -45,12 +34,6 @@ namespace TTSKML {
                     Console.WriteLine($"[WARN] no supported geometry for '{name}'");
                     continue;
                 }
-
-                //if ((polygon != null) && (point == null)){
-                //    // we have a bounding box, add to bboxes list and continue
-                //    bboxes.Add(placemark);
-                //    continue;
-                //}
 
                 // find style with Id equal to the placemark name
                 var matchingStyle = styles.FirstOrDefault(s => s.Id == name);
@@ -166,19 +149,6 @@ namespace TTSKML {
                 }
             }
 
-            // Count all created unitLocations including nested subordinates
-            int totalUnitCount = CountAllUnits(units);
-            Console.WriteLine($"Created Units:  {totalUnitCount}");
-
-            // Recursively total vehicle types across all created unitLocations and their subordinates
-            var totals = SumAllVehicleTypes(units);
-
-            Console.WriteLine();
-            Console.WriteLine("Vehicle type totals (descending):");
-            foreach (var kv in totals.OrderByDescending(k => k.Value)) {
-                Console.WriteLine($"- {kv.Key}: {kv.Value}");
-            }
-
             return units;
         }
 
@@ -191,60 +161,6 @@ namespace TTSKML {
             if (geometry == null) return null;
             if (geometry is SharpKml.Dom.Polygon p) return p;
             else return null;  // only handle polygon
-        }
-
-        // Aggregates vehicle counts for a single unit (recurses into subordinates).
-        private static void AccumulateVehicleTypes(ArmyUnit unit, Dictionary<string,int> totals) {
-            if (unit is null) return;
-
-            // Vehicles at this unit
-            var vehicles = unit.VehicleAllocations ?? Enumerable.Empty<VehicleAllocation>();
-            foreach (var v in vehicles) {
-                if (string.IsNullOrWhiteSpace(v.VehicleType)) continue;
-                totals.TryGetValue(v.VehicleType, out var cur);
-                totals[v.VehicleType] = cur + v.Count;
-            }
-
-            // Recurse into subordinate unitLocations
-            var subs = unit.SubordinateAssignments ?? Enumerable.Empty<SubordinateAssignment>();
-            foreach (var sa in subs) {
-                if (sa?.Subordinate != null) {
-                    AccumulateVehicleTypes(sa.Subordinate, totals);
-                }
-            }
-        }
-
-        // Convenience entry: sum all vehicle types for a list of root unitLocations.
-        private static Dictionary<string,int> SumAllVehicleTypes(IEnumerable<AlignedArmyUnit> roots) {
-            var totals = new Dictionary<string,int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var root in roots) {
-                AccumulateVehicleTypes(root, totals);
-            }
-            return totals;
-        }
-
-        // Recursively count unitLocations for a single unit (counts the unit itself + all nested subordinates).
-        private static int CountUnits(ArmyUnit? unit) {
-            if (unit is null) return 0;
-            int count = 1; // count this unit
-
-            var subs = unit.SubordinateAssignments ?? Enumerable.Empty<SubordinateAssignment>();
-            foreach (var sa in subs) {
-                if (sa?.Subordinate != null) {
-                    count += CountUnits(sa.Subordinate);
-                }
-            }
-
-            return count;
-        }
-
-        // Count all unitLocations for a list of root AlignedArmyUnit instances.
-        private static int CountAllUnits(IEnumerable<AlignedArmyUnit> roots) {
-            int total = 0;
-            foreach (var root in roots) {
-                total += CountUnits(root);
-            }
-            return total;
         }
     }
 }
