@@ -2,6 +2,9 @@
 using NetTopologySuite.Geometries;
 using SharpKml.Dom;
 using MilitaryModel;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Linq;
 
 namespace TTSKML {
     public static class ProcessKML {
@@ -51,7 +54,7 @@ namespace TTSKML {
             return lon;
         }
 
-        public static IReadOnlyList<ArmyUnit> GenerateUnitTree(IReadOnlyList<ArmyUnit>? units, NetTopologySuite.Geometries.Geometry? fronts, bool debug = true) {
+        public static IReadOnlyList<ArmyUnit> GenerateUnitTree(IReadOnlyList<ArmyUnit>? units, NetTopologySuite.Geometries.Geometry? fronts, double deploymentPercentage = 0.50, bool debug = true) {
             var units_to_place = new List<ArmyUnit>();
             var rearAreas = new List<Placemark>();
             var combatAreas = new List<Placemark>();
@@ -59,53 +62,46 @@ namespace TTSKML {
 
             List<ArmyUnit> everyUnit = new();
 
+            var globalVisited = new HashSet<ArmyUnit>(new ReferenceByRefComparer());
+
+            if (units == null) return everyUnit;
+
             foreach (var unit in units) {
+                if (unit == null) continue;
                 var position = unit.Position;
                 if (position == null) { continue; }
+
+                // If this root was already processed as a subordinate of an earlier root, skip it.
+                if (globalVisited.Contains(unit)) continue;
 
                 // determine deployment heading:
                 var coord = new Coordinate(position.Longitude, position.Latitude);
                 var heading = MilitaryModel.DeploymentModel.Tools.CalculateUnitHeadingToFLOT(coord, fronts);
+                double headingVal;
                 if (heading == null) {
-                    Console.WriteLine($"[WARN] null heading after calculation {unit.Name}");
-                    continue;
+                    Console.WriteLine($"[WARN] null heading after calculation {unit.Name} - falling back to 0 degrees");
+                    headingVal = 0.0; // fallback heading
+                } else {
+                    headingVal = heading.Value;
                 }
-                else {
-                    unit.SetHeading(heading.Value);
+                unit.SetHeading(headingVal);
 
-                    // ApplyDoctrinalDeployment
-                    var allUnits = MilitaryModel.DeploymentModel.Tools.ApplyDoctrinalDeployment(unit, fronts, 100);
-                    everyUnit.AddRange(allUnits);
+                // ApplyDoctrinalDeployment (this returns a collection that used an internal visited set
+                // scoped to the single call). Filter the returned units against our globalVisited set
+                // so units already produced by earlier roots are not duplicated or re-processed.
+                var allUnits = MilitaryModel.DeploymentModel.Tools.ApplyDoctrinalDeployment(unit, fronts, deploymentPercentage);
+                if (allUnits == null) continue;
 
-                    foreach (var u in allUnits) {
-                        // --- Create heading line ---
-                        // create a line 4500 meters from the unit in the heading direction
-                        double startLat = u.Position.Latitude;
-                        double startLon = u.Position.Longitude;
-                        var (endLat, endLon) = DestinationPoint(startLat, startLon, u.Heading.Value, 4500.0);
+                var newUnits = allUnits.Where(u => u != null && !globalVisited.Contains(u)).ToList();
 
-                        var coords = new SharpKml.Dom.CoordinateCollection();
-                        coords.Add(new SharpKml.Base.Vector(startLat, startLon)); // KML uses lat,lon
-                        coords.Add(new SharpKml.Base.Vector(endLat, endLon));
-                        var line = new SharpKml.Dom.LineString { Coordinates = coords };
-                        string color = "gray";
-                        switch (unit.Faction) {
-                            case Faction.NATO:
-                                color = "blue";
-                                break;
-                            case Faction.WarsawPact:
-                                color = "red";
-                                break;
-                            default:
-                                break;
-                            
-                        }
-
-                        headingLines.Add((line, color, u.Name ?? "Unit"));
-                    }   
+                // Mark newly observed units as visited and add them to everyUnit
+                foreach (var u in newUnits) {
+                    if (u == null) continue;
+                    globalVisited.Add(u);
+                    everyUnit.Add(u);
                 }
             }
-            if (debug) { ExportKml(everyUnit, fronts, headingLines); }
+
             return everyUnit;
         }
 
@@ -197,6 +193,11 @@ namespace TTSKML {
                 var serializer = SharpKml.Engine.KmlFile.Create(kml, false);
                 serializer.Save(stream);
             }
+        }
+
+        private sealed class ReferenceByRefComparer : IEqualityComparer<ArmyUnit> {
+            public bool Equals(ArmyUnit? x, ArmyUnit? y) => ReferenceEquals(x, y);
+            public int GetHashCode(ArmyUnit obj) => RuntimeHelpers.GetHashCode(obj);
         }
     }
 }
