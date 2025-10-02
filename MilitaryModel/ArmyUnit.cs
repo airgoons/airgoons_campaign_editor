@@ -35,22 +35,15 @@ namespace MilitaryModel {
 
     public enum ArmyUnitAssignment {
         FORWARD_DEPLOYABLE,
-        HEADQUARTERS_AREA
+        HEADQUARTERS_AREA,
+        HQSAM,
+        NONE_DEFAULT
     }
 
     public enum DeploymentOrder {
         COMBAT,
         HQSAM,
         NOT_DEPLOYED
-    }
-
-    public class SubordinateAssignment {
-        public ArmyUnitAssignment Assignment { get; }
-        public ArmyUnit Subordinate { get; }
-        public SubordinateAssignment(ArmyUnit subordinate, ArmyUnitAssignment assignment) {
-            Subordinate = subordinate;
-            Assignment = assignment;
-        }
     }
 
     public abstract class ArmyUnit {
@@ -68,8 +61,10 @@ namespace MilitaryModel {
 
         private DeploymentOrder _deploymentOrder = DeploymentOrder.NOT_DEPLOYED;
         public DeploymentOrder DeploymentOrder => _deploymentOrder;
+        private ArmyUnitAssignment _assignment = ArmyUnitAssignment.NONE_DEFAULT;
+        public ArmyUnitAssignment Assignment => _assignment;
 
-        public IReadOnlyList<SubordinateAssignment> SubordinateAssignments { get; }
+        public IReadOnlyList<ArmyUnit> Subordinates { get; }
         public IReadOnlyList<VehicleAllocation> VehicleAllocations { get; }
         public Faction Faction { get; }
         public Nation? Nation { get; }
@@ -81,16 +76,18 @@ namespace MilitaryModel {
             string description,
             Faction faction,
             Nation? nation,
-            IReadOnlyList<SubordinateAssignment> subordinates,
-            IReadOnlyList<VehicleAllocation> vehicles) {
+            IReadOnlyList<ArmyUnit> subordinates,
+            IReadOnlyList<VehicleAllocation> vehicles,
+            ArmyUnitAssignment assignment = ArmyUnitAssignment.NONE_DEFAULT) {
             Faction = faction;
             Nation = nation;
             Echelon = echelon;
             UnitType = type;
             Name = name;
             Description = description;
-            SubordinateAssignments = subordinates;
+            Subordinates = subordinates;
             VehicleAllocations = vehicles;
+            _assignment = assignment;
         }
 
         public void SetPosition(Vector position) {
@@ -103,6 +100,9 @@ namespace MilitaryModel {
 
         public void SetDeploymentOrder(DeploymentOrder deploymentOrder) {
             _deploymentOrder = deploymentOrder;
+        }
+        public void SetAssignment(ArmyUnitAssignment assignment) {
+            _assignment = assignment;
         }
     }
 }

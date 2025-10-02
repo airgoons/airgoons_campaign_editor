@@ -12,7 +12,7 @@ namespace SOTN.ArmyModel {
             string description,
             Faction faction,
             Nation? nation,
-            IReadOnlyList<SubordinateAssignment> subordinates,
+            IReadOnlyList<ArmyUnit> subordinates,
             IReadOnlyList<VehicleAllocation> vehicles)
             : base(echelon, type, name, description, faction, nation, subordinates, vehicles) {
         }

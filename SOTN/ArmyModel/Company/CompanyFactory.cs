@@ -12,20 +12,22 @@ namespace SOTN.ArmyModel.Company {
             // Build subordinate platoons according to the mapping for this company type.
             var subordinateDefs = PlatoonAssignmentsMapping.GetAssignments(type);
 
-            var subordinateAssignments = new List<SubordinateAssignment>();
+            var subordinates = new List<ArmyUnit>();
             for (int i = 0; i < 4; i++) {
                 var subordinateName = $"{name}/{i}PLT";
                 var company = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, type, subordinateName);
-                subordinateAssignments.Add(new SubordinateAssignment(company, ArmyUnitAssignment.FORWARD_DEPLOYABLE));
+                company.SetAssignment(ArmyUnitAssignment.FORWARD_DEPLOYABLE);
+                subordinates.Add(company);
             }
 
             for (int i = 0; i < 1; i++) {
                 var subordinateName = $"{name}/HQ/{i}PLT";
                 var platoon = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, ArmyUnitType.HEADQUARTERS, subordinateName);
-                subordinateAssignments.Add(new SubordinateAssignment(platoon, ArmyUnitAssignment.HEADQUARTERS_AREA));
+                platoon.SetAssignment(ArmyUnitAssignment.HEADQUARTERS_AREA);
+                subordinates.Add(platoon);
             }
 
-            return new Company(type, name, description, resolvedFaction, resolvedNation, subordinateAssignments, Array.Empty<VehicleAllocation>());
+            return new Company(type, name, description, resolvedFaction, resolvedNation, subordinates, Array.Empty<VehicleAllocation>());
         }
     }
 }

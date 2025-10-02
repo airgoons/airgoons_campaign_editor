@@ -13,21 +13,8 @@ namespace MilitaryModel.DeploymentModel {
         public static readonly double BattalionToBattalion = BrigadeToBattalion / 2;
         public static readonly double BattalionToCompany = 500;
         public static readonly double CompanyToCompany = BattalionToCompany / 2;
-        public static readonly double CompanyToPlatoon = 100;
+        public static readonly double CompanyToPlatoon = 200;
         public static readonly double PlatoonToPlatoon = CompanyToPlatoon / 2;
-    }
-
-    public static class Angles {
-        private static double GetAngle(double radius, double doubleDistance) {
-            double theta = Math.Acos(
-                Math.Pow(doubleDistance, 2) / (2 * radius * doubleDistance)
-            );
-            return theta;
-        }
-        public static readonly double BrigadeToBrigade = GetAngle(Distances.DivisionToBrigade, Distances.BrigadeToBrigade);
-        public static readonly double BattalionToBattalion = GetAngle(Distances.BrigadeToBattalion, Distances.BattalionToBattalion);
-        public static readonly double CompanyToCompany = GetAngle(Distances.BattalionToCompany, Distances.CompanyToCompany);
-        public static readonly double PlatoonToPlatoon = GetAngle(Distances.CompanyToPlatoon, Distances.PlatoonToPlatoon);
     }
 
     public static class Tools
@@ -176,8 +163,7 @@ namespace MilitaryModel.DeploymentModel {
             return new LineString(new[] { origin, end });
         }
 
-        // --- New: doctrinal deployment application ---
-        public static List<ArmyUnit> ApplyDoctrinalDeployment(ArmyUnit root, Geometry? flotLine = null, double deploymentPercentage = 100.0)
+        public static List<ArmyUnit> ApplyDoctrinalDeployment(ArmyUnit root, Geometry? flotLine = null, double deploymentPercentage = 1.0)
         {
             var collected = new List<ArmyUnit>();
             if (root == null) return collected;
@@ -187,27 +173,45 @@ namespace MilitaryModel.DeploymentModel {
             return collected;
         }
 
-        private static void ApplyDoctrinalDeploymentInternal(ArmyUnit root, List<ArmyUnit> collected, HashSet<ArmyUnit> visited, Geometry? flotLine, double deploymentPercentage)
-        {
+        private static void ApplyDoctrinalDeploymentInternal(ArmyUnit root, List<ArmyUnit> collected, HashSet<ArmyUnit> visited, Geometry? flotLine, double deploymentPercentage) {
             if (root == null) return;
             if (!visited.Add(root)) return; // prevent cycles
+
+            // normalize orders of root's direct subordinates
+            foreach (var sub in root.Subordinates) {
+                sub.SetDeploymentOrder(root.DeploymentOrder);
+            }
+
+            if (root.DeploymentOrder == DeploymentOrder.NOT_DEPLOYED) {
+                return;
+            }
+            else if (root.DeploymentOrder == DeploymentOrder.COMBAT) {
+                ApplyDoctrinalDeploymentInternal_COMBAT(root, collected, visited, flotLine, deploymentPercentage);
+            }
+            else if (root.DeploymentOrder == DeploymentOrder.HQSAM) {
+                ApplyDoctrinalDeploymentInternal_HQSAM(root, collected, visited, flotLine, deploymentPercentage);
+            }
+            else {
+                // DeploymentOrders were expanded without refactoring this function.
+                throw new NotImplementedException();
+            }
+        }
+
+        private static void ApplyDoctrinalDeploymentInternal_COMBAT(ArmyUnit root, List<ArmyUnit> collected, HashSet<ArmyUnit> visited, Geometry? flotLine, double deploymentPercentage) {
 
             // ensure top-level has position and heading; if not, skip placement for children
             bool canPlaceChildren = root.Position != null && root.Heading != null;
 
-            // Place forward-deployable subordinates along an arc centered on parent's heading
-            var forwardSubs = root.SubordinateAssignments
-                .Where(sa => sa.Assignment == ArmyUnitAssignment.FORWARD_DEPLOYABLE && sa.Subordinate != null)
-                .Select(sa => sa.Subordinate)
+            var forwardSubs = root.Subordinates
+                .Where(sub => sub.Assignment == ArmyUnitAssignment.FORWARD_DEPLOYABLE && sub != null)
+                .Select(sub => sub)
                 .ToList();
 
-            if (canPlaceChildren && forwardSubs.Count > 0 && deploymentPercentage > 0.0)
-            {
+            if (canPlaceChildren && forwardSubs.Count > 0 && deploymentPercentage > 0.0) {
                 // choose separation distance based on parent->child echelon
                 double lineLength = GetSeparationDistance(root.Echelon, forwardSubs.First().Echelon); // total available line length (meters)
-                // peer spacing along the line (desired distance between peers)
-                double peerSpacing = forwardSubs.First().Echelon switch
-                {
+                                                                                                      // peer spacing along the line (desired distance between peers)
+                double peerSpacing = forwardSubs.First().Echelon switch {
                     ArmyUnitEchelon.BRIGADE => Distances.BrigadeToBrigade,
                     ArmyUnitEchelon.BATTALION => Distances.BattalionToBattalion,
                     ArmyUnitEchelon.COMPANY => Distances.CompanyToCompany,
@@ -218,16 +222,14 @@ namespace MilitaryModel.DeploymentModel {
                 double centerHeading = root.Heading.Value; // degrees compass
 
                 // determine how many subordinates to position based on percentage
-                int countToPlace = (int)Math.Round(forwardSubs.Count * Math.Clamp(deploymentPercentage, 0.0, 100.0) / 100.0);
+                int countToPlace = (int)Math.Round(forwardSubs.Count * Math.Clamp(deploymentPercentage, 0.0, 1.0));
                 // If user requested some deployment but rounding produced 0, place at least one
-                if (deploymentPercentage > 0.0 && countToPlace == 0)
-                {
+                if (deploymentPercentage > 0.0 && countToPlace == 0) {
                     countToPlace = 1;
                 }
                 countToPlace = Math.Max(0, Math.Min(forwardSubs.Count, countToPlace));
 
-                if (countToPlace > 0)
-                {
+                if (countToPlace > 0) {
                     int startIndex = (forwardSubs.Count - countToPlace) / 2; // center the selected subset within the list
 
                     // Build the list of subordinates that will be positioned (centered slice)
@@ -260,7 +262,7 @@ namespace MilitaryModel.DeploymentModel {
                         // Always use the absolute value for distance, and adjust bearing based on sign
                         double bearing = lineOrientation;
                         double distance = Math.Abs(offsetAlongLine);
-                        
+
                         // If offset is negative, adjust the bearing to go in the opposite direction
                         if (offsetAlongLine < 0) {
                             bearing = NormalizeAngle(lineOrientation + 180.0);
@@ -270,23 +272,7 @@ namespace MilitaryModel.DeploymentModel {
                         sub.SetPosition(new Vector(finalLat, finalLon));
 
                         sub.SetHeading(centerHeading);
-                        // Recalculate subordinate heading based on FLOT if provided, otherwise default to parent heading
-                        //double? recalculatedHeading = null;
-                        //if (flotLine != null)
-                        //{
-                        //    var coord = new Coordinate(finalLon, finalLat); // Coordinate(X=lon, Y=lat)
-                        //    recalculatedHeading = CalculateUnitHeadingToFLOT(coord, flotLine);
-                        //}
-                        //if (recalculatedHeading.HasValue)
-                        //{
-                        //    sub.SetHeading(recalculatedHeading.Value);
-                        //}
-                        //else
-                        //{
-                        //    sub.SetHeading(centerHeading);
-                        //}
 
-                        // debug: log placement details
                         try {
                             // Calculate actual midpoint for verification
                             double firstSubOffset = firstOffset;
@@ -298,27 +284,28 @@ namespace MilitaryModel.DeploymentModel {
                 }
             }
 
-            // Optionally, place headquarters-area subordinates near the parent (cluster)
-            var hqSubs = root.SubordinateAssignments
-                .Where(sa => sa.Assignment == ArmyUnitAssignment.HEADQUARTERS_AREA && sa.Subordinate != null)
-                .Select(sa => sa.Subordinate)
-                .ToList();
-            if (canPlaceChildren && hqSubs.Count > 0 && deploymentPercentage > 0.0)
-            {
-                // cluster radius small fraction of parent separation (or fixed)
-                double clusterRadius = 0.2 * GetSeparationDistance(root.Echelon, hqSubs.First().Echelon);
-                if (clusterRadius <= 0) clusterRadius = 50.0;
+            // 1.  Add root to collected
+            if (!collected.Any(u => ReferenceEquals(u, root))) {
+                collected.Add(root);
+            }
 
-                int countToPlace = (int)Math.Round(hqSubs.Count * Math.Clamp(deploymentPercentage, 0.0, 100.0) / 100.0);
-                if (deploymentPercentage > 0.0 && countToPlace == 0)
-                {
+            // 2.  Add root's HQ units to collected
+            var hqSubs = root.Subordinates
+                .Where(sub => sub.Assignment == ArmyUnitAssignment.HEADQUARTERS_AREA && sub != null)
+                .Select(sub => sub)
+                .ToList();
+
+            if (canPlaceChildren && hqSubs.Count > 0 && deploymentPercentage > 0.0) {
+                double clusterRadius = 50.0; // meters
+
+                int countToPlace = (int)Math.Round(hqSubs.Count * Math.Clamp(deploymentPercentage, 0.0, 1.0));
+                if (deploymentPercentage > 0.0 && countToPlace == 0) {
                     countToPlace = 1;
                 }
                 countToPlace = Math.Max(0, Math.Min(hqSubs.Count, countToPlace));
                 int startIndex = (hqSubs.Count - countToPlace) / 2;
 
-                for (int i = 0; i < hqSubs.Count; i++)
-                {
+                for (int i = 0; i < hqSubs.Count; i++) {
                     if (i < startIndex || i >= startIndex + countToPlace) continue;
                     var sub = hqSubs[i];
                     if (sub == null) continue;
@@ -327,47 +314,34 @@ namespace MilitaryModel.DeploymentModel {
                     sub.SetPosition(new Vector(lat, lon));
 
                     sub.SetHeading(root.Heading.Value);
-                    // Recalculate HQ subordinate heading based on FLOT if provided, otherwise default to parent heading
-                    // disable heading recalculation
-                    //double? hqRecalc = null;
-                    //if (flotLine != null)
-                    //{
-                    //    var coord = new Coordinate(lon, lat);
-                    //    hqRecalc = CalculateUnitHeadingToFLOT(coord, flotLine);
-                    //}
-                    //if (hqRecalc.HasValue)
-                    //{
-                    //    sub.SetHeading(hqRecalc.Value);
-                    //}
-                    //else
-                    //{
-                    //    sub.SetHeading(root.Heading.Value);
-                    //}
 
                     // Add headquarters-area subordinate to collected in pre-order and mark visited to avoid duplicate processing
-                    if (visited.Add(sub))
-                    {
+                    if (visited.Add(sub)) {
                         collected.Add(sub);
                     }
                 }
             }
 
-            // Add root to collected before recursing so list is pre-order; change placement if needed
-            // Only add the root once (defensive: check by reference to avoid duplicates)
-            if (!collected.Any(u => ReferenceEquals(u, root)))
-            {
-                collected.Add(root);
-            }
-
-            // Recurse into all subordinates that were positioned (regardless of echelon)
-            foreach (var sa in root.SubordinateAssignments ?? Enumerable.Empty<SubordinateAssignment>())
-            {
-                if (sa?.Subordinate == null) continue;
+            // 3.  Recurse into subordinates
+            foreach (var sub in root.Subordinates ?? Enumerable.Empty<ArmyUnit>()) {
+                if (sub == null) continue;
 
                 // Only recurse into positioned subordinates that haven't already been visited
-                if (sa.Subordinate.Position != null && !visited.Contains(sa.Subordinate))
-                {
-                    ApplyDoctrinalDeploymentInternal(sa.Subordinate, collected, visited, flotLine, deploymentPercentage);
+                if (sub.Position != null && !visited.Contains(sub)) {
+                    ApplyDoctrinalDeploymentInternal(sub, collected, visited, flotLine, deploymentPercentage);
+                }
+            }
+        }
+        private static void ApplyDoctrinalDeploymentInternal_HQSAM(ArmyUnit root, List<ArmyUnit> collected, HashSet<ArmyUnit> visited, Geometry? flotLine, double deploymentPercentage) {
+            foreach (var sub in root.Subordinates) {
+                if (sub == null) continue;
+                if (sub.Assignment != ArmyUnitAssignment.HQSAM) continue;
+                else {
+                    var subordinate = sub;
+                    subordinate.SetPosition(root.Position);
+                    subordinate.SetHeading(root.Heading.Value);
+
+                    if (visited.Add(subordinate)) { collected.Add(subordinate); }
                 }
             }
         }
@@ -393,18 +367,6 @@ namespace MilitaryModel.DeploymentModel {
                 // fallback: use peer-level defaults for same-level spacing
                 ArmyUnitEchelon.DIVISION => Distances.DivisionToBrigade,
                 _ => 500.0,
-            };
-        }
-
-        private static double GetPeerAngleRad(ArmyUnitEchelon echelon)
-        {
-            return echelon switch
-            {
-                ArmyUnitEchelon.BRIGADE => Angles.BrigadeToBrigade,
-                ArmyUnitEchelon.BATTALION => Angles.BattalionToBattalion,
-                ArmyUnitEchelon.COMPANY => Angles.CompanyToCompany,
-                ArmyUnitEchelon.PLATOON => Angles.PlatoonToPlatoon,
-                _ => Angles.CompanyToCompany,
             };
         }
 

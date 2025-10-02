@@ -32,10 +32,10 @@ namespace SOTN.ArmyModel {
                 }
 
                 // Push subordinates for processing
-                var subs = unit.SubordinateAssignments ?? Array.Empty<SubordinateAssignment>();
-                foreach (var sa in subs) {
-                    if (sa?.Subordinate != null)
-                        stack.Push(sa.Subordinate);
+                var subs = unit.Subordinates ?? Array.Empty<ArmyUnit>();
+                foreach (var sub in subs) {
+                    if (sub != null)
+                        stack.Push(sub);
                 }
             }
 

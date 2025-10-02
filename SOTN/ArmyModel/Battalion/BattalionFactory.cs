@@ -9,22 +9,38 @@ namespace SOTN.ArmyModel.Battalion {
 
             var description = $"{resolvedFaction}_{resolvedNation}_{type}_Battalion";
 
-            var subordinateAssignments = new List<SubordinateAssignment>();
+            var subordinates = new List<ArmyUnit>();
             for (int i = 0; i < 4; i++) {
                 var subordinateName = $"{name}/{i}CO";
                 var company = CompanyFactory.CreateCompany(resolvedFaction, resolvedNation, type, subordinateName);
-                subordinateAssignments.Add(new SubordinateAssignment(company, ArmyUnitAssignment.FORWARD_DEPLOYABLE));
+                company.SetAssignment(ArmyUnitAssignment.FORWARD_DEPLOYABLE);
+                subordinates.Add(company);
             }
 
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 2; i++) {
                 var subordinateName = $"{name}/HQ/{i}PLT";
                 var platoon = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, ArmyUnitType.HEADQUARTERS, subordinateName);
-                subordinateAssignments.Add(new SubordinateAssignment(platoon, ArmyUnitAssignment.HEADQUARTERS_AREA));
+                platoon.SetAssignment(ArmyUnitAssignment.HEADQUARTERS_AREA);
+                subordinates.Add(platoon);
             }
 
-            // TODO:  Add Battalion air defense
+            var hqsam_name = $"{name}/HQ/SAM_PLT";
+            var hqsam_platoon = BattalionHQSAM.Create(resolvedFaction, resolvedNation, hqsam_name);
+            hqsam_platoon.SetAssignment(ArmyUnitAssignment.HQSAM);
+            subordinates.Add(hqsam_platoon);
 
-            return new Battalion(type, name, description, resolvedFaction, resolvedNation, subordinateAssignments, Array.Empty<VehicleAllocation>());
+            return new Battalion(type, name, description, resolvedFaction, resolvedNation, subordinates, Array.Empty<VehicleAllocation>());
+        }
+
+        internal static class BattalionHQSAM {
+            private static List<VehicleRoleAllocation> _vehicleRoleAllocations = new List<VehicleRoleAllocation> {
+                new VehicleRoleAllocation(VehicleRole.AAA, 1),
+                new VehicleRoleAllocation(VehicleRole.CAR, 1)
+            };
+            internal static Platoon.Platoon Create(Faction faction, Nation? nation, string name) {
+                return PlatoonFactory.CreatePlatoon(faction, nation, ArmyUnitType.AIR_DEFENSE, name, _vehicleRoleAllocations);
+
+            }
         }
     }
 }
