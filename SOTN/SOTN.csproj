@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\MapData\MapData.csproj" />
     <ProjectReference Include="..\MilitaryModel\MilitaryModel.csproj" />
+    <ProjectReference Include="..\PyDCSInterop\PyDCSInterop.csproj" />
   </ItemGroup>
 
   <ItemGroup>

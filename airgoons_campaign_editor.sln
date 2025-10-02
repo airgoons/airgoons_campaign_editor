@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MilitaryModel", "MilitaryModel\MilitaryModel.csproj", "{DC0BD582-67E8-4F47-A518-1368B9C480AB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOTN", "SOTN\SOTN.csproj", "{8FB253D0-7EFE-4966-8B2C-E56CC0DECAD6}"
+	ProjectSection(ProjectDependencies) = postProject
+		{71B6F7D9-A75A-4C23-9167-2194CEFBDCF9} = {71B6F7D9-A75A-4C23-9167-2194CEFBDCF9}
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapData", "MapData\MapData.csproj", "{56558A2D-D685-4C9D-825C-152182BFC98E}"
 EndProject
