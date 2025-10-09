@@ -5,6 +5,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,7 +13,6 @@
     <ProjectReference Include="..\MilitaryModel\MilitaryModel.csproj" />
     <ProjectReference Include="..\PyDCSInterop\PyDCSInterop.csproj" />
     <ProjectReference Include="..\SOTN\SOTN.csproj" />
-    <ProjectReference Include="..\TestApplication\TestApplication.csproj" />
     <ProjectReference Include="..\TTSKML\TTSKML.csproj" />
   </ItemGroup>
 
