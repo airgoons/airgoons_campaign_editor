@@ -101,11 +101,14 @@ namespace TTSKML {
                     everyUnit.Add(u);
                 }
             }
+            ExportKml(everyUnit, fronts);
 
             return everyUnit;
         }
 
-        private static void ExportKml(List<ArmyUnit> units, NetTopologySuite.Geometries.Geometry? fronts, List<(SharpKml.Dom.LineString line, string color, string name)> headingLines) {
+        private static void ExportKml(List<ArmyUnit> units, NetTopologySuite.Geometries.Geometry? fronts) {
+            
+
             // --- Export units and fronts as KML ---
             var kmlDoc = new SharpKml.Dom.Document();
             kmlDoc.Name = "Units and Fronts";
@@ -145,47 +148,7 @@ namespace TTSKML {
                 }
             }
 
-            // Add heading linestring placemarks with color
-            foreach (var (line, color, name) in headingLines) {
-                var coords = new SharpKml.Dom.CoordinateCollection();
-                foreach (var c in line.Coordinates) {
-                    coords.Add(new SharpKml.Base.Vector(c.Latitude, c.Longitude)); // KML uses lat,lon
-                }
-                var placemark = new SharpKml.Dom.Placemark {
-                    Name = $"{name} Heading",
-                    Geometry = new SharpKml.Dom.LineString {
-                        Coordinates = coords
-                    },
-                    StyleUrl = new Uri($"#{color}-line", UriKind.Relative)
-                };
-                kmlDoc.AddFeature(placemark);
-            }
 
-            // Add styles for blue and red lines (Color32 expects ABGR: alpha, blue, green, red)
-            var blueLineStyle = new SharpKml.Dom.Style {
-                Id = "blue-line",
-                Line = new SharpKml.Dom.LineStyle {
-                    Color = new SharpKml.Base.Color32(255, 255, 0, 0), // blue (A,B,G,R)
-                    Width = 3
-                }
-            };
-            var redLineStyle = new SharpKml.Dom.Style {
-                Id = "red-line",
-                Line = new SharpKml.Dom.LineStyle {
-                    Color = new SharpKml.Base.Color32(255, 0, 0, 255), // red (A,B,G,R)
-                    Width = 3
-                }
-            };
-            var grayLineStyle = new SharpKml.Dom.Style {
-                Id = "gray-line",
-                Line = new SharpKml.Dom.LineStyle {
-                    Color = new SharpKml.Base.Color32(255, 128, 128, 128), // gray (symmetric)
-                    Width = 3
-                }
-            };
-            kmlDoc.AddStyle(blueLineStyle);
-            kmlDoc.AddStyle(redLineStyle);
-            kmlDoc.AddStyle(grayLineStyle);
 
             // Save KML to file
             var kml = new SharpKml.Dom.Kml { Feature = kmlDoc };

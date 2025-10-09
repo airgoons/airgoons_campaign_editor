@@ -9,35 +9,48 @@ namespace TestApplication {
         static void Main(string[] args) {
             // TODO:  Refactor hard set variables to config file or command line options
             // TODO:  Implement deployment such that some of these mappings are not necessary
-            var venv_path = @"E:\dev\airgoons_campaign_editor\.venv";
-            var pydll_path = @"C:\Python312\python312.dll";
-            var pydcs_extensions_location = @"E:\dev\airgoons_campaign_editor";
-            var template_path = @"E:\dev\airgoons\SOTN_DCS\SOTN_template\latest.miz";
-            var output_miz_path = @"test.miz";
+            var venv_path = @"C:\dev\airgoons_campaign_editor\.venv";
+            var pydll_path = @"C:\Users\wonkotron\AppData\Local\Programs\Python\Python312\python312.dll";
+            var pydcs_extensions_location = @"C:\dev\airgoons_campaign_editor";
+            var raw_template_path = @"%USERPROFILE%\Downloads\SOTN_Template_v1.0.miz";
+            var template_path = Environment.ExpandEnvironmentVariables(raw_template_path);
+            var output_miz_path = @"SOTN_gameday1.miz";
 
-            var raw_kmlPath = @"%USERPROFILE%\Downloads\Sample_bboxes.kml";
+            var raw_kmlPath = @"%USERPROFILE%\Downloads\TacMapPostGT1.kml";
             var kmlPath = Environment.ExpandEnvironmentVariables(raw_kmlPath);
 
-            var units = KmlUnitImporter.Run(kmlPath);
+            var topLevelUnits = KmlUnitImporter.Run(kmlPath);
 
             // TODO: var targets = LoadTargetSet(targetsPath);
             var targets = new List<string> {
-                "10GTD",
-                "12GTD",
-                "33/11PZG"
+                "21MRD/2TA",
+                "94GMRD/2TA",
+                "112MissileBde",
+                "207MRD/2TA",
+                "Rec11PzG",
+                "32/11PZG",
+                "31/11Pzg",
+                "33/11PzG",
+                "HQ/11PzG"
             };
-            var targetUnits = SelectTargetUnits(units, targets);
+            var targetUnits = SelectTargetUnits(topLevelUnits, targets);
             var boundingBoxes = GenerateBoundingBoxes(targetUnits);
-            var filteredUnits = FilterUnits(units, boundingBoxes);
+            var filteredUnits = FilterUnits(topLevelUnits, boundingBoxes);
 
-            var fronts = MilitaryModel.DeploymentModel.KernelFlotGenerator.GenerateFronts(units, 500, 18_000, 1, 1, 2);
+            var fronts = MilitaryModel.DeploymentModel.KernelFlotGenerator.GenerateFronts(topLevelUnits, 500, 18_000, 1, 1, 2);
 
             var generatedUnits = ProcessKML.GenerateUnitTree(filteredUnits, fronts, 0.5, true);
             ArmyUnitStatistics.PrintUnitStatistics(generatedUnits, false, true);
 
             try {
                 var pydcs = new PyDCS(venv_path, pydll_path, false, pydcs_extensions_location);
-                SOTN.DCS.MissionPrep.GenerateMiz(pydcs, template_path, output_miz_path, generatedUnits);
+                // TODO:  add switches in command line arguments
+                var createTopLevelPlacemarks = true;
+                var spawnUnits = false;
+                var spawnPlacemarkCarsOnly = true;
+
+                SOTN.DCS.MissionPrep.GenerateMiz(pydcs, template_path, output_miz_path, topLevelUnits, generatedUnits, createTopLevelPlacemarks, spawnUnits, spawnPlacemarkCarsOnly);
+                SOTN.DCS.MissionPrep.AddFronts(pydcs, output_miz_path, fronts);
             }
             finally {
                 PyDCS.ShutdownPythonRuntime();

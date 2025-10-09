@@ -73,7 +73,7 @@ namespace PyDCSInterop {
             var pydcsSrc = Path.Combine(resolvedVenv, "src", "pydcs");
 
             // interpreterRoot must point to the real Python install that contains the stdlib (Lib\encodings)
-            var interpreterRoot = @"C:\Python312"; // <-- change if different on your machine
+            var interpreterRoot = @"C:\Users\wonkotron\AppData\Local\Programs\Python\Python312"; // <-- change if different on your machine
 
             // prefer explicit dll if provided, otherwise pick interpreterRoot\python312.dll
             if (!string.IsNullOrWhiteSpace(pythonDllPath)) {

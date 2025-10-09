@@ -65,7 +65,9 @@ namespace MilitaryModel {
         public ArmyUnitAssignment Assignment => _assignment;
 
         public IReadOnlyList<ArmyUnit> Subordinates { get; }
-        public IReadOnlyList<VehicleAllocation> VehicleAllocations { get; }
+
+        private List<VehicleAllocation> _vehicleAllocations = new();
+        public IReadOnlyList<VehicleAllocation> VehicleAllocations => _vehicleAllocations;
         public Faction Faction { get; }
         public Nation? Nation { get; }
 
@@ -86,7 +88,7 @@ namespace MilitaryModel {
             Name = name;
             Description = description;
             Subordinates = subordinates;
-            VehicleAllocations = vehicles;
+            _vehicleAllocations.AddRange(vehicles);
             _assignment = assignment;
         }
 
@@ -103,6 +105,10 @@ namespace MilitaryModel {
         }
         public void SetAssignment(ArmyUnitAssignment assignment) {
             _assignment = assignment;
+        }
+
+        public void SetVehicleAllocations(List<VehicleAllocation> vehicleAllocations) {
+            _vehicleAllocations = vehicleAllocations;
         }
     }
 }

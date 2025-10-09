@@ -16,10 +16,10 @@ namespace TTSKML {
             var placemarks = KmlDataReader.GetPlacemarks(kmlFile);
             var styles = KmlDataReader.GetStyles(kmlFile);
 
-            var factionsPath = @"E:\dev\rs89_tts\Red_Strike_V1_2.vmod_factions.json";
+            var factionsPath = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Downloads\Red_Strike_V1_2.vmod_factions.json");
             var factionsData = TTSJSON.FactionsRepository.LoadFlattened(factionsPath);
 
-            var tagsPath = @"E:\dev\rs89_tts\unit_tags\unit_tags.json";
+            var tagsPath = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Downloads\unit_tags.json");
             var unitTags = TTSJSON.UnitTag.LoadUnitTags(tagsPath);
 
             var units = new List<ArmyUnit>();
