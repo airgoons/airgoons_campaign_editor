@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MapData\MapData.csproj" />
+    <ProjectReference Include="..\MilitaryModel\MilitaryModel.csproj" />
+    <ProjectReference Include="..\PyDCSInterop\PyDCSInterop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="ArmyModel\Brigade\" />
+    <Folder Include="ArmyModel\Division\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
+    <PackageReference Include="NetTopologySuite.Features" Version="2.2.0" />
+    <PackageReference Include="ProjNET" Version="2.1.0" />
+    <PackageReference Include="SharpKml.Core" Version="6.1.0" />
+  </ItemGroup>
+
+</Project>

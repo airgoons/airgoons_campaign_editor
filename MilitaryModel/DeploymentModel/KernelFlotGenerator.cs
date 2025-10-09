@@ -1,0 +1,180 @@
+using NetTopologySuite;
+using NetTopologySuite.Geometries;
+using ProjNet.CoordinateSystems;
+using ProjNet.CoordinateSystems.Transformations;
+using System.Collections.Concurrent;
+
+namespace MilitaryModel.DeploymentModel {
+    public static class KernelFlotGenerator {
+        // Public entry: generates separating front(s) from units.
+        public static Geometry? GenerateFronts(
+            IReadOnlyList<ArmyUnit> units,
+            double resolutionMeters = 500.0,
+            double sigmaMeters = 18_000.0,
+            double kernelWeightMultiplier = 1.0,
+            double minLengthMeters = 1.0,
+            int smoothingIterations = 0
+        ) {
+            if (units == null || units.Count == 0) return null;
+
+            var influenceAreas = GenerateInfluenceAreas(units, resolutionMeters, sigmaMeters, kernelWeightMultiplier, 1);
+            if (influenceAreas == null || influenceAreas.Count == 0) return null;
+
+            var valid = influenceAreas.Where(kv => kv.Value != null).ToList();
+            if (valid.Count < 2) { Console.WriteLine("[WARN] Need at least two factions with influence areas to compute fronts."); return null; }
+
+            var toMeters = KFG_CreateWgs84ToWebMercatorTransform();
+            var toLonLat = KFG_CreateWebMercatorToWgs84Transform();
+            var geomFactory3857 = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 3857);
+            var geomFactory4326 = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326);
+
+            var frontLineMetersBag = new ConcurrentBag<LineString>();
+            var entries = valid.ToArray();
+
+            var pairs = new List<(int i, int j)>();
+            for (int i = 0; i < entries.Length; i++) {
+                var gi = entries[i].Value!;
+                var bi = gi.Boundary;
+                if (bi.IsEmpty) continue;
+                for (int j = i + 1; j < entries.Length; j++) {
+                    var gj = entries[j].Value!; var bj = gj.Boundary; if (bj.IsEmpty) continue; pairs.Add((i, j));
+                }
+            }
+
+            Parallel.ForEach(pairs, pair => {
+                var fi = entries[pair.i]; var fj = entries[pair.j];
+                var bi = fi.Value!.Boundary; var bj = fj.Value!.Boundary;
+                Geometry inter;
+                try { inter = bi.Intersection(bj); } catch (Exception ex) { Console.WriteLine($"[WARN] Intersection failed: {ex.Message}"); return; }
+                if (inter == null || inter.IsEmpty) return;
+                foreach (var line in ExtractLineStrings(inter)) {
+                    var lineMeters = (LineString)ReprojectGeometry(line, toMeters, geomFactory3857)!; if (lineMeters == null) continue;
+                    double len = lineMeters.Length; if (len >= minLengthMeters) frontLineMetersBag.Add(lineMeters);
+                }
+            });
+
+            var frontLineMeters = frontLineMetersBag.ToList();
+            if (frontLineMeters.Count == 0) { Console.WriteLine("[WARN] No contour segments found after computing faction boundaries."); return null; }
+
+            double mergeTolerance = Math.Max(1.0, resolutionMeters * 0.5);
+            var mergedLinesMeters = MergeLineStringsByEndpointProximity(frontLineMeters, mergeTolerance, geomFactory3857);
+
+            var processedLinesMeters = new List<LineString>();
+            double closeThreshold = 2500.0;
+            foreach (var ml in mergedLinesMeters) {
+                var coords = ml.Coordinates; if (coords.Length < 2) continue; var first = coords.First(); var last = coords.Last(); double dx = last.X - first.X; double dy = last.Y - first.Y; double dist = Math.Sqrt(dx * dx + dy * dy);
+                if (dist <= closeThreshold) { var closed = coords.ToList(); closed.Add(new Coordinate(first.X, first.Y)); processedLinesMeters.Add(geomFactory3857.CreateLineString(closed.ToArray())); }
+                else processedLinesMeters.Add(ml);
+            }
+
+            // Extend non-closed polylines: extend each open end by 150km along the average heading of up to the last 50 segments near that end.
+            double extensionMeters = 150000.0; // 150 km
+            int avgSegments = 50;
+            var extendedProcessedLines = new List<LineString>();
+            foreach (var pline in processedLinesMeters) {
+                var c = pline.Coordinates; if (c == null || c.Length < 2) { extendedProcessedLines.Add(pline); continue; }
+                var first = c.First(); var last = c.Last(); if (Math.Abs(first.X - last.X) <= 1e-6 && Math.Abs(first.Y - last.Y) <= 1e-6) { extendedProcessedLines.Add(pline); continue; } // closed - skip
+                extendedProcessedLines.Add(ExtendLineStringEndpoints(pline, extensionMeters, avgSegments, geomFactory3857));
+            }
+
+            // optional extension omitted for brevity
+            var finalLineGeomsLonLat = new List<Geometry>();
+            foreach (var merged in extendedProcessedLines) {
+                var coords = merged.Coordinates; if (coords.Length < 2) continue;
+                LineString toAddMeters = merged;
+                if (smoothingIterations > 0) { var smoothCoords = ChaikinSmoothCoordinates(coords, smoothingIterations); toAddMeters = geomFactory3857.CreateLineString(smoothCoords); }
+                if (toAddMeters.Length < minLengthMeters) continue;
+                var lonLine = (LineString)ReprojectGeometry(toAddMeters, toLonLat, geomFactory4326)!; if (lonLine != null) finalLineGeomsLonLat.Add(lonLine);
+            }
+
+            if (finalLineGeomsLonLat.Count == 0) { Console.WriteLine("[WARN] No contour segments remained after merging/smoothing."); return null; }
+
+            Geometry built = geomFactory4326.BuildGeometry(finalLineGeomsLonLat);
+            Geometry unioned = built.Union();
+            if (unioned is LineString ls) return ls; if (unioned is MultiLineString mls) return mls;
+            var extracted = ExtractLineStrings(unioned).ToArray(); if (extracted.Length == 0) return null; if (extracted.Length == 1) return extracted[0]; return geomFactory4326.CreateMultiLineString(extracted);
+        }
+
+        // ---- Helpers (KFG_ prefixed to avoid accidental duplicates) ----
+        private static MathTransform KFG_CreateWgs84ToWebMercatorTransform() {
+            var csFactory = new CoordinateSystemFactory(); var ctFactory = new CoordinateTransformationFactory(); var wgs84 = GeographicCoordinateSystem.WGS84; var webMerc = ProjectedCoordinateSystem.WebMercator; var trans = ctFactory.CreateFromCoordinateSystems(wgs84, webMerc); return trans.MathTransform;
+        }
+        private static Coordinate KFG_ProjectLonLatToMeters(MathTransform transform, double lon, double lat) { double[] from = new[] { lon, lat }; double[] to = transform.Transform(from); return new Coordinate(to[0], to[1]); }
+        public static MathTransform KFG_CreateWebMercatorToWgs84Transform() { var csFactory = new CoordinateSystemFactory(); var ctFactory = new CoordinateTransformationFactory(); var wgs84 = GeographicCoordinateSystem.WGS84; var webMerc = ProjectedCoordinateSystem.WebMercator; var trans = ctFactory.CreateFromCoordinateSystems(webMerc, wgs84); return trans.MathTransform; }
+
+        public static LineString ReprojectLineString(LineString lsMeters, MathTransform toLonLat, GeometryFactory factory4326) { var coords = lsMeters.Coordinates; var outCoords = new Coordinate[coords.Length]; for (int i = 0; i < coords.Length; i++) { double[] p = toLonLat.Transform(new[] { coords[i].X, coords[i].Y }); outCoords[i] = new Coordinate(p[0], p[1]); } return factory4326.CreateLineString(outCoords); }
+
+        private static Coordinate[] ChaikinSmoothCoordinates(Coordinate[] coords, int iterations) { if (coords == null || coords.Length < 2 || iterations <= 0) return coords; var current = coords.Select(c => new Coordinate(c.X, c.Y)).ToArray(); for (int it = 0; it < iterations; it++) { var next = new List<Coordinate>(); next.Add(new Coordinate(current[0].X, current[0].Y)); for (int i = 0; i < current.Length - 1; i++) { var p = current[i]; var q = current[i + 1]; var pa = new Coordinate(0.75 * p.X + 0.25 * q.X, 0.75 * p.Y + 0.25 * q.Y); var pb = new Coordinate(0.25 * p.X + 0.75 * q.X, 0.25 * p.Y + 0.75 * q.Y); next.Add(pa); next.Add(pb); } next.Add(new Coordinate(current.Last().X, current.Last().Y)); current = next.ToArray(); } return current; }
+
+        private static List<LineString> MergeLineStringsByEndpointProximity(List<LineString> lines, double tolMeters, GeometryFactory factory) { var segments = new List<(Point2 p0, Point2 p1)>(); foreach (var ls in lines) { var c = ls.Coordinates; if (c == null || c.Length < 2) continue; for (int i = 0; i < c.Length - 1; i++) segments.Add((new Point2(c[i].X, c[i].Y), new Point2(c[i + 1].X, c[i + 1].Y))); } if (segments.Count == 0) return new List<LineString>(); string Key(Point2 p) => $"{Math.Round(p.X / tolMeters)},{Math.Round(p.Y / tolMeters)}"; var segUsed = new bool[segments.Count]; var endpointMap = new Dictionary<string, List<int>>(); for (int i = 0; i < segments.Count; i++) { var s = segments[i]; var k0 = Key(s.p0); var k1 = Key(s.p1); if (!endpointMap.TryGetValue(k0, out var list0)) { list0 = new List<int>(); endpointMap[k0] = list0; } list0.Add(i); if (!endpointMap.TryGetValue(k1, out var list1)) { list1 = new List<int>(); endpointMap[k1] = list1; } list1.Add(i); } var polylines = new List<List<Point2>>(); for (int si = 0; si < segments.Count; si++) { if (segUsed[si]) continue; segUsed[si] = true; var s = segments[si]; var chain = new LinkedList<Point2>(); chain.AddLast(s.p0); chain.AddLast(s.p1); void Extend(LinkedList<Point2> chainLocal, bool forward) { bool extended; do { extended = false; Point2 tip = forward ? chainLocal.Last.Value : chainLocal.First.Value; var key = Key(tip); if (!endpointMap.TryGetValue(key, out var candList)) break; int found = -1; bool foundSwapped = false; foreach (var idx in candList) { if (segUsed[idx]) continue; var seg = segments[idx]; if (PointsEqual(seg.p0, tip)) { found = idx; foundSwapped = false; break; } if (PointsEqual(seg.p1, tip)) { found = idx; foundSwapped = true; break; } } if (found >= 0) { var seg = segments[found]; segUsed[found] = true; Point2 next = foundSwapped ? seg.p0 : seg.p1; if (forward) chainLocal.AddLast(next); else chainLocal.AddFirst(next); extended = true; } } while (extended); } Extend(chain, true); Extend(chain, false); polylines.Add(chain.ToList()); } var result = new List<LineString>(); foreach (var poly in polylines) { var coords = poly.Select(p => new Coordinate(p.X, p.Y)).ToArray(); if (coords.Length >= 2) result.Add(factory.CreateLineString(coords)); } return result; }
+
+        private static List<(Point2 p0, Point2 p1)> MarchingSquaresExtractZeroContour(double[,] values, double[] xs, double[] ys) { int rows = values.GetLength(0); int cols = values.GetLength(1); var segments = new List<(Point2, Point2)>(); if (rows < 2 || cols < 2) return segments; for (int j = 0; j < rows - 1; j++) { for (int i = 0; i < cols - 1; i++) { double x0 = xs[i] - (xs[1] - xs[0]) / 2.0; double x1 = xs[i + 1] + (xs[1] - xs[0]) / 2.0; double y0 = ys[j] - (ys[1] - ys[0]) / 2.0; double y1 = ys[j + 1] + (ys[1] - ys[0]) / 2.0; double v00 = values[j, i]; double v10 = values[j, i + 1]; double v11 = values[j + 1, i + 1]; double v01 = values[j + 1, i]; int caseIndex = 0; if (v00 > 0) caseIndex |= 1; if (v10 > 0) caseIndex |= 2; if (v11 > 0) caseIndex |= 4; if (v01 > 0) caseIndex |= 8; if (caseIndex == 0 || caseIndex == 15) continue; Point2? eTop = null, eRight = null, eBottom = null, eLeft = null; if ((v00 > 0) != (v10 > 0)) { double t = SafeInterp(v00, v10); double x = Lerp(x0, x1, t); eTop = new Point2(x, y0); } if ((v10 > 0) != (v11 > 0)) { double t = SafeInterp(v10, v11); double y = Lerp(y0, y1, t); eRight = new Point2(x1, y); } if ((v11 > 0) != (v01 > 0)) { double t = SafeInterp(v11, v01); double x = Lerp(x1, x0, t); eBottom = new Point2(x, y1); } if ((v01 > 0) != (v00 > 0)) { double t = SafeInterp(v01, v00); double y = Lerp(y1, y0, t); eLeft = new Point2(x0, y); } switch (caseIndex) { case 1: case 14: if (eTop != null && eLeft != null) segments.Add((eTop.Value, eLeft.Value)); break; case 2: case 13: if (eTop != null && eRight != null) segments.Add((eTop.Value, eRight.Value)); break; case 3: case 12: if (eRight != null && eLeft != null) segments.Add((eRight.Value, eLeft.Value)); break; case 4: case 11: if (eRight != null && eBottom != null) segments.Add((eRight.Value, eBottom.Value)); break; case 5: if (eTop != null && eLeft != null) segments.Add((eTop.Value, eLeft.Value)); if (eRight != null && eBottom != null) segments.Add((eRight.Value, eBottom.Value)); break; case 10: if (eTop != null && eRight != null) segments.Add((eTop.Value, eRight.Value)); if (eLeft != null && eBottom != null) segments.Add((eLeft.Value, eBottom.Value)); break; case 6: case 9: if (eTop != null && eBottom != null) segments.Add((eTop.Value, eBottom.Value)); break; case 7: case 8: if (eBottom != null && eLeft != null) segments.Add((eBottom.Value, eLeft.Value)); break; default: break; } } } return segments; }
+
+        private static double Lerp(double a, double b, double t) => a + (b - a) * t; private static double SafeInterp(double vA, double vB) { double denom = (vA - vB); if (Math.Abs(denom) < 1e-12) return 0.5; return vA / denom; }
+
+        private static List<List<Point2>> StitchSegmentsToPolylines(List<(Point2 p0, Point2 p1)> segments) { var polylines = new List<List<Point2>>(); if (segments == null || segments.Count == 0) return polylines; double tol = 1e-6; string Key(Point2 p) => $"{Math.Round(p.X / tol)},{Math.Round(p.Y / tol)}"; var segUsed = new bool[segments.Count]; var endpointMap = new Dictionary<string, List<int>>(); for (int i = 0; i < segments.Count; i++) { var s = segments[i]; var k0 = Key(s.p0); var k1 = Key(s.p1); if (!endpointMap.TryGetValue(k0, out var list0)) { list0 = new List<int>(); endpointMap[k0] = list0; } list0.Add(i); if (!endpointMap.TryGetValue(k1, out var list1)) { list1 = new List<int>(); endpointMap[k1] = list1; } list1.Add(i); } for (int si = 0; si < segments.Count; si++) { if (segUsed[si]) continue; var s = segments[si]; segUsed[si] = true; var chain = new LinkedList<Point2>(); chain.AddLast(s.p0); chain.AddLast(s.p1); void Extend(LinkedList<Point2> chainLocal, bool forward) { bool extended; do { extended = false; Point2 tip = forward ? chainLocal.Last.Value : chainLocal.First.Value; var key = Key(tip); if (!endpointMap.TryGetValue(key, out var candList)) break; int found = -1; bool foundSwapped = false; foreach (var idx in candList) { if (segUsed[idx]) continue; var seg = segments[idx]; if (PointsEqual(seg.p0, tip)) { found = idx; foundSwapped = false; break; } if (PointsEqual(seg.p1, tip)) { found = idx; foundSwapped = true; break; } } if (found >= 0) { var seg = segments[found]; segUsed[found] = true; Point2 next = foundSwapped ? seg.p0 : seg.p1; if (forward) chainLocal.AddLast(next); else chainLocal.AddFirst(next); extended = true; } } while (extended); } Extend(chain, true); Extend(chain, false); polylines.Add(chain.ToList()); } return polylines; }
+
+        private static bool PointsEqual(Point2 a, Point2 b, double eps = 1e-6) { return Math.Abs(a.X - b.X) <= eps && Math.Abs(a.Y - b.Y) <= eps; }
+
+        private readonly struct Point2 { public readonly double X; public readonly double Y; public Point2(double x, double y) { X = x; Y = y; } public override string ToString() => $"({X},{Y})"; }
+
+        public static Dictionary<Faction, Geometry?> GenerateInfluenceAreas(IReadOnlyList<ArmyUnit> units, double resolutionMeters = 500.0, double sigmaMeters = 18_000.0, double kernelWeightMultiplier = 1.0, double minAreaCells = 1) {
+            if (units == null || units.Count == 0) return new Dictionary<Faction, Geometry?>();
+            var factionGroups = units.Where(u => u != null && u.Position != null).GroupBy(u => u.Faction).Select(g => new { Faction = g.Key, Units = g.ToList() }).ToList(); if (factionGroups.Count == 0) return new Dictionary<Faction, Geometry?>(); var transformToMeters = KFG_CreateWgs84ToWebMercatorTransform(); var transformToLonLat = KFG_CreateWebMercatorToWgs84Transform(); var projPerFaction = factionGroups.ToDictionary(fg => fg.Faction, fg => fg.Units.Select(u => KFG_ProjectLonLatToMeters(transformToMeters, u.Position.Longitude, u.Position.Latitude)).ToList()); double pad = Math.Max(3.0 * sigmaMeters, 2.0 * resolutionMeters) + 2000.0; double minX = projPerFaction.Min(kv => kv.Value.Min(c => c.X)) - pad; double minY = projPerFaction.Min(kv => kv.Value.Min(c => c.Y)) - pad; double maxX = projPerFaction.Max(kv => kv.Value.Max(c => c.X)) + pad; double maxY = projPerFaction.Max(kv => kv.Value.Max(c => c.Y)) + pad; int cols = Math.Max(3, (int)Math.Ceiling((maxX - minX) / resolutionMeters)); int rows = Math.Max(3, (int)Math.Ceiling((maxY - minY) / resolutionMeters)); var xs = new double[cols]; var ys = new double[rows]; for (int i = 0; i < cols; i++) xs[i] = minX + (i + 0.5) * resolutionMeters; for (int j = 0; j < rows; j++) ys[j] = minY + (j + 0.5) * resolutionMeters; var twoSigmaSq = 2.0 * sigmaMeters * sigmaMeters; if (twoSigmaSq <= 0) twoSigmaSq = 2.0; var fieldPerFaction = new Dictionary<Faction, double[]>(); foreach (var kv in projPerFaction) { var field = new double[rows * cols]; var pts = kv.Value; if (pts.Count == 0) { fieldPerFaction[kv.Key] = field; continue; } int nCells = rows * cols; var localsBag = new ConcurrentBag<double[]>(); Parallel.ForEach(pts, () => new double[nCells], (p, state, local) => { double ux = p.X, uy = p.Y; double w = 1.0 * kernelWeightMultiplier; double radius = 3.0 * sigmaMeters; int maxIspan = Math.Max(1, (int)Math.Ceiling(radius / resolutionMeters)); int iCenter = (int)Math.Floor((ux - minX) / resolutionMeters); int jCenter = (int)Math.Floor((uy - minY) / resolutionMeters); int i0 = Math.Max(0, iCenter - maxIspan); int i1 = Math.Min(cols - 1, iCenter + maxIspan); int j0 = Math.Max(0, jCenter - maxIspan); int j1 = Math.Min(rows - 1, jCenter + maxIspan); for (int j = j0; j <= j1; j++) { double dy = ys[j] - uy; double dy2 = dy * dy; int baseIdx = j * cols; for (int i = i0; i <= i1; i++) { double dx = xs[i] - ux; double dist2 = dx * dx + dy2; double val = w * Math.Exp(-dist2 / twoSigmaSq); local[baseIdx + i] += val; } } return local; }, local => localsBag.Add(local)); foreach (var local in localsBag) { if (local == null) continue; for (int idx = 0; idx < rows * cols; idx++) { var v = local[idx]; if (v != 0.0) field[idx] += v; } } fieldPerFaction[kv.Key] = field; } var geomFactory3857 = NtsGeometryServices.Instance.CreateGeometryFactory(srid: 3857); var results = new ConcurrentDictionary<Faction, Geometry?>(); Parallel.ForEach(fieldPerFaction, kv => { var faction = kv.Key; var myField = kv.Value; var otherMax = new double[rows * cols]; foreach (var other in fieldPerFaction.Where(x => !x.Key.Equals(faction)).Select(x => x.Value)) { for (int idx = 0; idx < rows * cols; idx++) otherMax[idx] = Math.Max(otherMax[idx], other[idx]); } var cellPolygons = new List<Polygon>(); double half = resolutionMeters * 0.5; for (int j = 0; j < rows; j++) { for (int i = 0; i < cols; i++) { int idx = j * cols + i; if (myField[idx] <= otherMax[idx]) continue; double cx = xs[i], cy = ys[j]; var corners = new[] { new Coordinate(cx - half, cy - half), new Coordinate(cx + half, cy - half), new Coordinate(cx + half, cy + half), new Coordinate(cx - half, cy + half), new Coordinate(cx - half, cy - half) }; var poly = geomFactory3857.CreatePolygon(geomFactory3857.CreateLinearRing(corners)); cellPolygons.Add(poly); } } if (cellPolygons.Count < minAreaCells) { results[faction] = null; return; } var built = geomFactory3857.BuildGeometry(cellPolygons); var unioned = built.Union(); var geom4326 = ReprojectGeometry(unioned, transformToLonLat, NtsGeometryServices.Instance.CreateGeometryFactory(srid: 4326)); results[faction] = geom4326; }); return new Dictionary<Faction, Geometry?>(results); }
+
+        private static Geometry? ReprojectGeometry(Geometry geomMeters, MathTransform toLonLat, GeometryFactory factory4326) {
+            if (geomMeters == null) return null;
+            Geometry TransformGeom(Geometry g) {
+                switch (g) {
+                    case Polygon poly:
+                        var shell = TransformLineString(poly.ExteriorRing, toLonLat, factory4326);
+                        var holes = new LinearRing[poly.NumInteriorRings];
+                        for (int h = 0; h < poly.NumInteriorRings; h++) holes[h] = TransformLineString(poly.GetInteriorRingN(h), toLonLat, factory4326);
+                        return factory4326.CreatePolygon(shell, holes);
+                    case MultiPolygon mp:
+                        var polys = new Polygon[mp.NumGeometries];
+                        for (int i = 0; i < mp.NumGeometries; i++) polys[i] = (Polygon)TransformGeom((Polygon)mp.GetGeometryN(i));
+                        return factory4326.CreateMultiPolygon(polys);
+                    case GeometryCollection gc:
+                        var parts = new Geometry[gc.NumGeometries];
+                        for (int i = 0; i < gc.NumGeometries; i++) parts[i] = TransformGeom(gc.GetGeometryN(i));
+                        return factory4326.CreateGeometryCollection(parts);
+                    default:
+                        if (g is LineString ls) return ReprojectLineString(ls, toLonLat, factory4326);
+                        if (g is Point pt) { var p = toLonLat.Transform(new[] { pt.Coordinate.X, pt.Coordinate.Y }); return factory4326.CreatePoint(new Coordinate(p[0], p[1])); }
+                        return null;
+                }
+            }
+            LinearRing TransformLineString(LineString ring, MathTransform t, GeometryFactory factory) {
+                var coords = ring.Coordinates; var outCoords = new Coordinate[coords.Length]; for (int i = 0; i < coords.Length; i++) { var p = t.Transform(new[] { coords[i].X, coords[i].Y }); outCoords[i] = new Coordinate(p[0], p[1]); } return factory.CreateLinearRing(outCoords);
+            }
+            return TransformGeom(geomMeters);
+        }
+
+        public static IEnumerable<LineString> ExtractLineStrings(Geometry g) {
+            if (g == null || g.IsEmpty) yield break;
+            switch (g) { case LineString ls: yield return ls; yield break; case MultiLineString mls: for (int i = 0; i < mls.NumGeometries; i++) yield return (LineString)mls.GetGeometryN(i); yield break; case GeometryCollection gc: for (int i = 0; i < gc.NumGeometries; i++) { foreach (var sub in ExtractLineStrings(gc.GetGeometryN(i))) yield return sub; } yield break; default: yield break; }
+        }
+
+        // New helper: extend open LineStrings at both ends
+        private static LineString ExtendLineStringEndpoints(LineString ls, double extendMeters, int segmentCountToAvg, GeometryFactory factory) {
+            var coords = ls.Coordinates; int n = coords.Length; if (n < 2) return ls;
+            var first = coords[0]; var last = coords[n - 1]; if (Math.Abs(first.X - last.X) <= 1e-9 && Math.Abs(first.Y - last.Y) <= 1e-9) return ls; // closed
+            int segCount = n - 1; int m = Math.Min(segmentCountToAvg, segCount);
+            // start: take first m segments but invert them to point outward from start
+            double sx = 0.0, sy = 0.0;
+            for (int i = 0; i < m; i++) { double vx = coords[i + 1].X - coords[i].X; double vy = coords[i + 1].Y - coords[i].Y; sx += -vx; sy += -vy; }
+            // end: take last m segments as-is
+            double ex = 0.0, ey = 0.0;
+            for (int i = segCount - m; i < segCount; i++) { double vx = coords[i + 1].X - coords[i].X; double vy = coords[i + 1].Y - coords[i].Y; ex += vx; ey += vy; }
+            double sLen = Math.Sqrt(sx * sx + sy * sy);
+            double eLen = Math.Sqrt(ex * ex + ey * ey);
+            Coordinate newFirst = first; Coordinate newLast = last;
+            if (sLen > 1e-12) { sx = sx / sLen * extendMeters; sy = sy / sLen * extendMeters; newFirst = new Coordinate(first.X + sx, first.Y + sy); }
+            if (eLen > 1e-12) { ex = ex / eLen * extendMeters; ey = ey / eLen * extendMeters; newLast = new Coordinate(last.X + ex, last.Y + ey); }
+            // build new coordinate array: newFirst, original coords..., newLast
+            var outCoords = new Coordinate[n + 2]; outCoords[0] = newFirst; for (int i = 0; i < n; i++) outCoords[i + 1] = coords[i]; outCoords[n + 1] = newLast;
+            return factory.CreateLineString(outCoords);
+        }
+    }
+}
