@@ -3,37 +3,59 @@ using TTSKML;
 using ProjNet.CoordinateSystems;
 using ProjNet.CoordinateSystems.Transformations;
 using PyDCSInterop;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
+using System.ComponentModel.DataAnnotations;
 
-namespace TestApplication {
+
+namespace ACEDCS {
+    internal class Settings
+    {
+        required internal string VenvPath { get; set; }
+        required internal string PyDllPath { get; set; }
+        required internal string PyDcsExtensionsPath { get; set; }
+    }
+
+    internal class Targets
+    {
+        required internal List<string> UnitNames { get; set; }
+    }
+
     internal class Program {
         static void Main(string[] args) {
-            // TODO:  Refactor hard set variables to config file or command line options
             // TODO:  Implement deployment such that some of these mappings are not necessary
-            var venv_path = @"C:\dev\airgoons_campaign_editor\.venv";
-            var pydll_path = @"C:\Users\wonkotron\AppData\Local\Programs\Python\Python312\python312.dll";
-            var pydcs_extensions_location = @"C:\dev\airgoons_campaign_editor";
+            var config = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("acedcs_config.json", optional: false, reloadOnChange: false)
+                .AddJsonFile("targets.json", optional: false, reloadOnChange: false)
+                .AddCommandLine(args)
+                .Build();
+
+            Settings? settingsConfig = config.GetRequiredSection("Settings").Get<Settings>();
+            Targets? targets = config.GetRequiredSection("Targets").Get<Targets>();
+
             var raw_template_path = @"%USERPROFILE%\Downloads\SOTN_Template_v1.0.miz";
             var template_path = Environment.ExpandEnvironmentVariables(raw_template_path);
+            
             var output_miz_path = @"SOTN_gameday1.miz";
-
             var raw_kmlPath = @"%USERPROFILE%\Downloads\TacMapPostGT1.kml";
             var kmlPath = Environment.ExpandEnvironmentVariables(raw_kmlPath);
 
             var topLevelUnits = KmlUnitImporter.Run(kmlPath);
 
-            // TODO: var targets = LoadTargetSet(targetsPath);
-            var targets = new List<string> {
-                "21MRD/2TA",
-                "94GMRD/2TA",
-                "112MissileBde",
-                "207MRD/2TA",
-                "Rec11PzG",
-                "32/11PZG",
-                "31/11Pzg",
-                "33/11PzG",
-                "HQ/11PzG"
-            };
-            var targetUnits = SelectTargetUnits(topLevelUnits, targets);
+            //var targets = new List<string> {
+            //    "21MRD/2TA",
+            //    "94GMRD/2TA",
+            //    "112MissileBde",
+            //    "207MRD/2TA",
+            //    "Rec11PzG",
+            //    "32/11PZG",
+            //    "31/11Pzg",
+            //    "33/11PzG",
+            //    "HQ/11PzG"
+            //};
+
+            var targetUnits = SelectTargetUnits(topLevelUnits, targets?.UnitNames);
             var boundingBoxes = GenerateBoundingBoxes(targetUnits);
             var filteredUnits = FilterUnits(topLevelUnits, boundingBoxes);
 
@@ -43,7 +65,7 @@ namespace TestApplication {
             ArmyUnitStatistics.PrintUnitStatistics(generatedUnits, false, true);
 
             try {
-                var pydcs = new PyDCS(venv_path, pydll_path, false, pydcs_extensions_location);
+                var pydcs = new PyDCS(settingsConfig.VenvPath, settingsConfig.PyDllPath, false, settingsConfig.PyDcsExtensionsPath);
                 // TODO:  add switches in command line arguments
                 var createTopLevelPlacemarks = true;
                 var spawnUnits = false;
