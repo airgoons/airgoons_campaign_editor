@@ -1,4 +1,5 @@
 ﻿using Python.Runtime;
+using System.Diagnostics;
 
 namespace PyDCSInterop {
     // Minimal, deterministic Python initialization for a known working venv and DLL.
@@ -72,8 +73,76 @@ namespace PyDCSInterop {
             var scriptsPath = Path.Combine(resolvedVenv, "Scripts");
             var pydcsSrc = Path.Combine(resolvedVenv, "src", "pydcs");
 
-            // interpreterRoot must point to the real Python install that contains the stdlib (Lib\encodings)
-            var interpreterRoot = @"C:\Users\wonkotron\AppData\Local\Programs\Python\Python312"; // <-- change if different on your machine
+            // Determine interpreterRoot from the venv when possible:
+            // 1. If pyvenv.cfg contains a "home =" entry, prefer that (points to real Python install).
+            // 2. If the venv itself contains Lib/encodings, the venv can be treated as interpreter root.
+            // 3. If Scripts/python.exe exists, run it to obtain sys.base_prefix as a fallback.
+            string? DetermineInterpreterRoot() {
+                try {
+                    var cfg = Path.Combine(resolvedVenv, "pyvenv.cfg");
+                    if (File.Exists(cfg)) {
+                        var lines = File.ReadAllLines(cfg);
+                        foreach (var ln in lines) {
+                            var l = ln.Trim();
+                            if (l.StartsWith("home", StringComparison.OrdinalIgnoreCase)) {
+                                var parts = l.Split('=', 2);
+                                if (parts.Length == 2) {
+                                    var home = parts[1].Trim();
+                                    if (!string.IsNullOrEmpty(home) && Directory.Exists(home)) {
+                                        if (debug) Console.Error.WriteLine($"[DEBUG] pyvenv.cfg home => {home}");
+                                        return home;
+                                    }
+                                }
+                            }
+                        }
+                        if (debug) Console.Error.WriteLine("[DEBUG] pyvenv.cfg present but no usable 'home' entry found.");
+                    }
+
+                    // If the venv contains the stdlib directly, use the venv as interpreter root.
+                    var venvEnc = Path.Combine(resolvedVenv, "Lib", "encodings", "__init__.py");
+                    if (File.Exists(venvEnc)) {
+                        if (debug) Console.Error.WriteLine($"[DEBUG] venv contains stdlib encodings; using venv as interpreterRoot: {resolvedVenv}");
+                        return resolvedVenv;
+                    }
+
+                    // If there is a python executable inside the venv, ask it for sys.base_prefix.
+                    var venvPython = Path.Combine(resolvedVenv, "Scripts", "python.exe");
+                    if (File.Exists(venvPython)) {
+                        try {
+                            var psi = new ProcessStartInfo(venvPython, "-c \"import sys;print(sys.base_prefix)\"") {
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+                            using var proc = Process.Start(psi);
+                            if (proc != null) {
+                                var outStr = proc.StandardOutput.ReadToEnd();
+                                var errStr = proc.StandardError.ReadToEnd();
+                                proc.WaitForExit(3000);
+                                var candidate = outStr.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
+                                if (!string.IsNullOrEmpty(candidate) && Directory.Exists(candidate)) {
+                                    var candEnc = Path.Combine(candidate, "Lib", "encodings", "__init__.py");
+                                    if (File.Exists(candEnc)) {
+                                        if (debug) Console.Error.WriteLine($"[DEBUG] venv python sys.base_prefix => {candidate}");
+                                        return candidate;
+                                    }
+                                }
+                                if (debug && !string.IsNullOrEmpty(errStr)) Console.Error.WriteLine($"[DEBUG] venv python stderr: {errStr}");
+                            }
+                        } catch (Exception ex) {
+                            if (debug) Console.Error.WriteLine($"[DEBUG] Failed to run venv python to determine base prefix: {ex.Message}");
+                        }
+                    }
+
+                    if (debug) Console.Error.WriteLine("[DEBUG] Could not determine interpreterRoot from venv.");
+                } catch (Exception ex) {
+                    if (debug) Console.Error.WriteLine("[DEBUG] DetermineInterpreterRoot error: " + ex);
+                }
+                return null;
+            }
+
+            var interpreterRoot = DetermineInterpreterRoot();
 
             // prefer explicit dll if provided, otherwise pick interpreterRoot\python312.dll
             if (!string.IsNullOrWhiteSpace(pythonDllPath)) {
@@ -163,7 +232,7 @@ namespace PyDCSInterop {
                 PythonEngine.Initialize();
             } catch (Exception ex) {
                 throw new InvalidOperationException(
-                    $"Failed to initialize PythonEngine. PYTHONHOME={Environment.GetEnvironmentVariable("PYTHONHOME")}; PYTHONPATH={Environment.GetEnvironmentVariable("PYTHONPATH")}; Runtime.PythonDLL={(Runtime.PythonDLL ?? "(not set)")}",
+                    $"Failed to initialize PythonEngine. PYTHONHOME={Environment.GetEnvironmentVariable("PYTHONHOME")}; PYTHONPATH={Environment.GetEnvironmentVariable("PYTHONPATH")}; Runtime.PythonDLL={(Runtime.PythonDLL ?? "(not set)")} ",
                     ex);
             }
 

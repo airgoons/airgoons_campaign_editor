@@ -11,19 +11,14 @@ using SharpKml.Dom;
 
 namespace TTSKML {
     public static class KmlUnitImporter {
-        public static IReadOnlyList<ArmyUnit> Run(string kmlPath) {
+        public static IReadOnlyList<ArmyUnit> Run(string kmlPath, string factionsPath, string tagsPath) {
             var kmlFile = KmlDataReader.LoadKmlAsync(kmlPath).Result;
             var placemarks = KmlDataReader.GetPlacemarks(kmlFile);
             var styles = KmlDataReader.GetStyles(kmlFile);
-
-            var factionsPath = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Downloads\Red_Strike_V1_2.vmod_factions.json");
             var factionsData = TTSJSON.FactionsRepository.LoadFlattened(factionsPath);
-
-            var tagsPath = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Downloads\unit_tags.json");
             var unitTags = TTSJSON.UnitTag.LoadUnitTags(tagsPath);
 
             var units = new List<ArmyUnit>();
-            // var bboxes = new List<Placemark>();
 
             foreach (var placemark in placemarks) {
                 var name = placemark.Name;
