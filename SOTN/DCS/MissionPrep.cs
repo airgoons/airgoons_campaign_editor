@@ -10,12 +10,14 @@ using System.Xml.Linq;
 
 namespace SOTN.DCS {
     public static class MissionPrep {
-        public static void GenerateMiz(PyDCS pydcs, string templatePath, string outputPath, IReadOnlyList<ArmyUnit> topLevelUnits, IReadOnlyList<ArmyUnit> generatedUnits, bool createAllPlacemarks, bool spawnUnits, bool spawnCommandPlacemarkCarOnly) {
+        public static void GenerateMiz(PyDCS pydcs, string templatePath, string outputPath, IReadOnlyList<ArmyUnit> topLevelUnits, IReadOnlyList<ArmyUnit> generatedUnits, Geometry? fronts, bool createAllPlacemarks, bool spawnUnits, bool spawnCommandPlacemarkCarOnly) {
             dynamic dcs = pydcs.DCS;
             dynamic terrain = dcs.terrain.GermanyColdWar();
             dynamic miz = dcs.Mission(terrain);
-            
+
             miz.load_file(templatePath);
+
+            AddFronts(pydcs, miz, fronts);
 
             if (createAllPlacemarks) {
                 foreach (var unit in topLevelUnits) {
@@ -85,23 +87,18 @@ namespace SOTN.DCS {
                 {
                     CreatePlacemarkCar(dcs, miz, unit);
                 }
-            }
-            
-
+            }           
 
             // save new miz
             miz.save(outputPath);
         }
         
-        public static void AddFronts(PyDCS pydcs, string outputPath, Geometry? fronts)
+        private static void AddFronts(PyDCS pydcs, dynamic startMiz, Geometry? fronts)
         {
             dynamic dcs = pydcs.DCS;
             dynamic terrain = dcs.terrain.GermanyColdWar();
-            dynamic miz = dcs.Mission(terrain);
 
-            miz.load_file(outputPath);
-
-            dynamic layer = miz.drawings.get_layer(dcs.drawing.drawings.StandardLayer.Common);
+            dynamic layer = startMiz.drawings.get_layer(dcs.drawing.drawings.StandardLayer.Common);
 
             if (fronts != null)
             {
@@ -126,10 +123,8 @@ namespace SOTN.DCS {
                     }
                 }
             }
-            miz.save(outputPath);
-
         }
-        
+
         private static dynamic GetMizCountry(dynamic dcs, dynamic miz, Faction faction) {
             if (faction == Faction.NATO) return miz.country(dcs.countries.CombinedJointTaskForcesBlue.name);
             else if (faction == Faction.WarsawPact) return miz.country(dcs.countries.CombinedJointTaskForcesRed.name);
