@@ -17,6 +17,9 @@ namespace ACEDCS {
         public required string OutputMizPath { get; set; }
         public required string FactionsPath { get; set; }
         public required string TagsPath { get; set; }
+        public bool CreateTopLevelPlacemarks { get; set; } = true;
+        public bool SpawnUnits { get; set; } = true;
+        public bool SpawnPlacemarkCarsOnly { get; set; } = false;
     }
 
     public class Targets
@@ -49,13 +52,8 @@ namespace ACEDCS {
 
             try {
                 var pydcs = new PyDCS(settingsConfig.VenvPath, settingsConfig.PyDllPath, false, settingsConfig.PyDcsExtensionsPath);
-                // TODO:  add switches in command line arguments
-                var createTopLevelPlacemarks = true;
-                var spawnUnits = false;
-                var spawnPlacemarkCarsOnly = true;
 
-                SOTN.DCS.MissionPrep.GenerateMiz(pydcs, settingsConfig.TemplateMizPath, settingsConfig.OutputMizPath, topLevelUnits, generatedUnits, createTopLevelPlacemarks, spawnUnits, spawnPlacemarkCarsOnly);
-                SOTN.DCS.MissionPrep.AddFronts(pydcs, settingsConfig.OutputMizPath, fronts);
+                SOTN.DCS.MissionPrep.GenerateMiz(pydcs, settingsConfig.TemplateMizPath, settingsConfig.OutputMizPath, topLevelUnits, generatedUnits, fronts, settingsConfig.CreateTopLevelPlacemarks, settingsConfig.SpawnUnits, settingsConfig.SpawnPlacemarkCarsOnly);
             }
             finally {
                 PyDCS.ShutdownPythonRuntime();
