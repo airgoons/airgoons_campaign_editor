@@ -3,37 +3,45 @@ using TTSKML;
 using ProjNet.CoordinateSystems;
 using ProjNet.CoordinateSystems.Transformations;
 using PyDCSInterop;
+using Microsoft.Extensions.Configuration;
 
-namespace TestApplication {
+
+namespace ACEDCS {
+    public class Settings
+    {
+        public required string VenvPath { get; set; }
+        public required string PyDllPath { get; set; }
+        public required string PyDcsExtensionsPath { get; set; }
+        public required string KmlPath { get; set; }
+        public required string TemplateMizPath { get; set; }
+        public required string OutputMizPath { get; set; }
+        public required string FactionsPath { get; set; }
+        public required string TagsPath { get; set; }
+        public bool CreateTopLevelPlacemarks { get; set; } = true;
+        public bool SpawnUnits { get; set; } = true;
+        public bool SpawnPlacemarkCarsOnly { get; set; } = false;
+    }
+
+    public class Targets
+    {
+        public required List<string> UnitNames { get; set; } = new();
+    }
+
     internal class Program {
         static void Main(string[] args) {
-            // TODO:  Refactor hard set variables to config file or command line options
-            // TODO:  Implement deployment such that some of these mappings are not necessary
-            var venv_path = @"C:\dev\airgoons_campaign_editor\.venv";
-            var pydll_path = @"C:\Users\wonkotron\AppData\Local\Programs\Python\Python312\python312.dll";
-            var pydcs_extensions_location = @"C:\dev\airgoons_campaign_editor";
-            var raw_template_path = @"%USERPROFILE%\Downloads\SOTN_Template_v1.0.miz";
-            var template_path = Environment.ExpandEnvironmentVariables(raw_template_path);
-            var output_miz_path = @"SOTN_gameday1.miz";
+            var config = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("acedcs_config.json", optional: false, reloadOnChange: false)
+                .AddJsonFile("targets.json", optional: false, reloadOnChange: false)
+                .AddCommandLine(args)
+                .Build();
 
-            var raw_kmlPath = @"%USERPROFILE%\Downloads\TacMapPostGT1.kml";
-            var kmlPath = Environment.ExpandEnvironmentVariables(raw_kmlPath);
+            Settings? settingsConfig = config.GetRequiredSection("Settings").Get<Settings>();
+            Targets? targets = config.GetRequiredSection("Targets").Get<Targets>();
 
-            var topLevelUnits = KmlUnitImporter.Run(kmlPath);
+            var topLevelUnits = KmlUnitImporter.Run(settingsConfig.KmlPath, settingsConfig.FactionsPath, settingsConfig.TagsPath);
 
-            // TODO: var targets = LoadTargetSet(targetsPath);
-            var targets = new List<string> {
-                "21MRD/2TA",
-                "94GMRD/2TA",
-                "112MissileBde",
-                "207MRD/2TA",
-                "Rec11PzG",
-                "32/11PZG",
-                "31/11Pzg",
-                "33/11PzG",
-                "HQ/11PzG"
-            };
-            var targetUnits = SelectTargetUnits(topLevelUnits, targets);
+            var targetUnits = SelectTargetUnits(topLevelUnits, targets?.UnitNames);
             var boundingBoxes = GenerateBoundingBoxes(targetUnits);
             var filteredUnits = FilterUnits(topLevelUnits, boundingBoxes);
 
@@ -43,14 +51,9 @@ namespace TestApplication {
             ArmyUnitStatistics.PrintUnitStatistics(generatedUnits, false, true);
 
             try {
-                var pydcs = new PyDCS(venv_path, pydll_path, false, pydcs_extensions_location);
-                // TODO:  add switches in command line arguments
-                var createTopLevelPlacemarks = true;
-                var spawnUnits = false;
-                var spawnPlacemarkCarsOnly = true;
+                var pydcs = new PyDCS(settingsConfig.VenvPath, settingsConfig.PyDllPath, false, settingsConfig.PyDcsExtensionsPath);
 
-                SOTN.DCS.MissionPrep.GenerateMiz(pydcs, template_path, output_miz_path, topLevelUnits, generatedUnits, createTopLevelPlacemarks, spawnUnits, spawnPlacemarkCarsOnly);
-                SOTN.DCS.MissionPrep.AddFronts(pydcs, output_miz_path, fronts);
+                SOTN.DCS.MissionPrep.GenerateMiz(pydcs, settingsConfig.TemplateMizPath, settingsConfig.OutputMizPath, topLevelUnits, generatedUnits, fronts, settingsConfig.CreateTopLevelPlacemarks, settingsConfig.SpawnUnits, settingsConfig.SpawnPlacemarkCarsOnly);
             }
             finally {
                 PyDCS.ShutdownPythonRuntime();

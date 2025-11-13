@@ -6,7 +6,7 @@ fiona
 pyogrio
 rtree
 
--e git+https://github.com/dcs-retribution/pydcs@f50627d79c1b24786139eed3a35329d55a03cef5#egg=pydcs
+-e git+https://github.com/dcs-retribution/pydcs@90804367e610e7eae4eab034b48eadd9f64ff74f#egg=pydcs
 PrettyTable
 jinja2
 geographiclib
