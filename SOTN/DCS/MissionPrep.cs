@@ -111,6 +111,9 @@ namespace SOTN.DCS {
                         if (line == null) continue;
                         var coords = new SharpKml.Dom.CoordinateCollection();
 
+                        //dynamic centroid = dcs.mapping.Point.from_latlng(dcs.mapping.LatLng(line.Centroid.Y, line.Centroid.X), terrain);
+                        dynamic zerozero = dcs.mapping.Point(0, 0, terrain);
+
                         List<dynamic> points = new();
                         foreach (var coord in line.Coordinates)
                         {
@@ -118,8 +121,20 @@ namespace SOTN.DCS {
                             points.Add(point);
                         }
 
-                        layer.add_line_segments(points[0], points.GetRange(1, points.Count - 1));
+                        dynamic drawing = dcs.drawing.line.LineDrawing(
+                            true,                                   // visible
+                            zerozero,                               // position
+                            "FLOT",                                 // name
+                            dcs.drawing.Rgba(193,0,0,255),          // color [vaha's FLOT color choice]
+                            layer.name,                             // layer_name, end of Drawing() args
+                            false,                                  // closed
+                            8,                                      // line_thickness
+                            dcs.drawing.drawing.LineStyle.Boundry1, // line_style
+                            dcs.drawing.line.LineMode.Segments,     // line_mode
+                            points                                  // points
+                        );
 
+                        layer.add_drawing(drawing);
                     }
                 }
             }
