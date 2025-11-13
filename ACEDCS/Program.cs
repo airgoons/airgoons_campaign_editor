@@ -45,7 +45,7 @@ namespace ACEDCS {
             var boundingBoxes = GenerateBoundingBoxes(targetUnits);
             var filteredUnits = FilterUnits(topLevelUnits, boundingBoxes);
 
-            var fronts = MilitaryModel.DeploymentModel.KernelFlotGenerator.GenerateFronts(topLevelUnits, 500, 18_000, 1, 1, 2);
+            var fronts = MilitaryModel.DeploymentModel.KernelFlotGenerator.GenerateFronts(topLevelUnits, 500, 18_000, 1, 1, 0);
 
             var generatedUnits = ProcessKML.GenerateUnitTree(filteredUnits, fronts, 0.5, true);
             ArmyUnitStatistics.PrintUnitStatistics(generatedUnits, false, true);
