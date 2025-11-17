@@ -18,7 +18,7 @@ namespace SOTN.ArmyModel.Brigade {
                 subordinates.Add(battalion);
             }
 
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 1; i++) {
                 var subordinateName = $"{name}/HQ/{i}PLT";
                 var platoon = PlatoonFactory.CreatePlatoon(resolvedFaction, resolvedNation, ArmyUnitType.HEADQUARTERS, subordinateName);
                 platoon.SetAssignment(ArmyUnitAssignment.HEADQUARTERS_AREA);
@@ -26,9 +26,8 @@ namespace SOTN.ArmyModel.Brigade {
             }
 
             var hqsam_name = $"{name}/HQ/SAM_PLT";
-            var hqsam_platoon = BrigadeHQSAM.Create(resolvedFaction, resolvedNation, hqsam_name);
-            hqsam_platoon.SetAssignment(ArmyUnitAssignment.HQSAM);
-            subordinates.Add(hqsam_platoon);
+            var hqsam_platoons = BrigadeHQSAM.Create(resolvedFaction, resolvedNation, hqsam_name);
+            subordinates = subordinates.Concat(hqsam_platoons).ToList();
 
             return new Brigade(type, name, description, resolvedFaction, resolvedNation, subordinates, Array.Empty<VehicleAllocation>());
         }
@@ -37,11 +36,19 @@ namespace SOTN.ArmyModel.Brigade {
             private static List<VehicleRoleAllocation> _vehicleRoleAllocations = new List<VehicleRoleAllocation> {
                 new VehicleRoleAllocation(VehicleRole.AAA, 1),
                 new VehicleRoleAllocation(VehicleRole.MANPADS, 1),
-                new VehicleRoleAllocation(VehicleRole.CAR, 1)
+                new VehicleRoleAllocation(VehicleRole.SAM_Short, 1)
             };
-            internal static Platoon.Platoon Create(Faction faction, Nation? nation, string name) {
-                return PlatoonFactory.CreatePlatoon(faction, nation, ArmyUnitType.AIR_DEFENSE, name, _vehicleRoleAllocations);
+            internal static List<Platoon.Platoon> Create(Faction faction, Nation? nation, string name) {
+                var platoons = new List<Platoon.Platoon>();
+                foreach (var roleAlloc in _vehicleRoleAllocations) {
 
+                    // MANTIS filter
+                    var specificName = $"{roleAlloc.Role.ToString()} {name}";
+                    var platoon = PlatoonFactory.CreatePlatoon(faction, nation, ArmyUnitType.AIR_DEFENSE, specificName, new List<VehicleRoleAllocation> { roleAlloc });
+                    platoon.SetAssignment(ArmyUnitAssignment.HQSAM);
+                    platoons.Add(platoon);
+                }
+                return platoons;
             }
         }
     }
