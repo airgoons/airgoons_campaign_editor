@@ -14,7 +14,7 @@ namespace SOTN.ArmyModel.Platoon {
             // NOTE:  Use strings that represent a PYDCS VehicleType
             _factionMaps = new Dictionary<Faction, IReadOnlyDictionary<VehicleRole, string>> {
                 [Faction.NATO] = new Dictionary<VehicleRole, string> {
-                    [VehicleRole.AAA] = "dcs.vehicles.AirDefence.Vulcan",
+                    [VehicleRole.AAA] = "dcs.vehicles.AirDefence.Gepard",
                     [VehicleRole.AMPHIB_TANK] = "dcs.vehicles.Armor.AAV7",
                     [VehicleRole.APC] = "dcs.vehicles.Armor.M_113",
                     [VehicleRole.ARMORED_SCOUT_VEHICLE] = "dcs.vehicles.Armor.M_2_Bradley",
@@ -23,7 +23,7 @@ namespace SOTN.ArmyModel.Platoon {
                     [VehicleRole.IFV] = "dcs.vehicles.Armor.M_2_Bradley",
                     [VehicleRole.INFANTRY] = "dcs.vehicles.Infantry.Soldier_M4",
                     [VehicleRole.LAUNCHER] = "dcs.vehicles.Artillery.MLRS",
-                    [VehicleRole.MANPADS] = "dcs.vehicles.AirDefence.Soldier_stinger",
+                    [VehicleRole.MANPADS] = "pydcs_extensions.lowdigitsmanpads.MANPADS_Redeye_FIM43C",
                     [VehicleRole.SAM_Long] = "dcs.vehicles.AirDefence.Rapier_fsa_launcher",  // ?? refactor to List of strings so that air defense units can have all the components they need
                     [VehicleRole.SAM_Medium] = "dcs.vehicles.AirDefence.M48_Chaparral",
                     [VehicleRole.SAM_Short] = "dcs.vehicles.AirDefence.M48_Chaparral",
@@ -31,7 +31,7 @@ namespace SOTN.ArmyModel.Platoon {
                     [VehicleRole.TRUCK] = "dcs.vehicles.Unarmed.M_818"
                 },
                 [Faction.WarsawPact] = new Dictionary<VehicleRole, string> {
-                    [VehicleRole.AAA] = "dcs.vehicles.AirDefence.ZU_23_Emplacement",
+                    [VehicleRole.AAA] = "dcs.vehicles.AirDefence.ZSU_23_4_Shilka",
                     [VehicleRole.AMPHIB_TANK] = "dcs.vehicles.Armor.PT_76",
                     [VehicleRole.APC] = "dcs.vehicles.Armor.BTR_80",
                     [VehicleRole.ARMORED_SCOUT_VEHICLE] = "dcs.vehicles.Armor.BRDM_2",
@@ -40,7 +40,7 @@ namespace SOTN.ArmyModel.Platoon {
                     [VehicleRole.IFV] = "dcs.vehicles.Armor.BMP_2",
                     [VehicleRole.INFANTRY] = "dcs.vehicles.Infantry.Infantry_AK",
                     [VehicleRole.LAUNCHER] = "dcs.vehicles.Artillery.Smerch",
-                    [VehicleRole.MANPADS] = "dcs.vehicles.AirDefence.Igla_manpad_INS",
+                    [VehicleRole.MANPADS] = "pydcs_extensions.lowdigitsmanpads.MANPADS_Strela2_SA7",
                     [VehicleRole.SAM_Long] = "dcs.vehicles.AirDefence.SA_11_Buk_LN_9A310M1",  // ?? refactor to List of strings so that air defense units can have all the components they need
                     [VehicleRole.SAM_Medium] = "dcs.vehicles.AirDefence.Kub_2P25_ln",  // ?? refactor to List of strings so that air defense units can have all the components they need
                     [VehicleRole.SAM_Short] = "dcs.vehicles.AirDefence.Osa_9A33_ln",
