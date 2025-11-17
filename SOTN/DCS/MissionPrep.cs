@@ -186,7 +186,9 @@ namespace SOTN.DCS {
                     }
                 }
 
-                miz.vehicle_group_platoon(country, group_name, vehicleTypes, position, unit.Heading);
+                dynamic group = miz.vehicle_group_platoon(country, group_name, vehicleTypes, position, unit.Heading);
+                group.hidden_on_planner = true;
+                group.hidden_on_mfd = true;
             }
             else {
                 CreateStaticVehicleGroup(dcs, miz, unit, country, position, vehicleTypes);
