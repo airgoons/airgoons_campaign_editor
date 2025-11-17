@@ -31,7 +31,7 @@ namespace ACEDCS {
 
             var topLevelUnits = KmlUnitImporter.Run(settingsConfig.KmlPath, settingsConfig.FactionsPath, settingsConfig.TagsPath);
 
-            var fronts = MilitaryModel.DeploymentModel.KernelFlotGenerator.GenerateFronts(topLevelUnits, 5000, 18_000, 1, 1, 0);
+            var fronts = MilitaryModel.DeploymentModel.KernelFlotGenerator.GenerateFronts(topLevelUnits, 500, 18_000, 1, 1, 0);
 
             try {
                 var pydcs = new PyDCS(settingsConfig.VenvPath, settingsConfig.PyDllPath, false, settingsConfig.PyDcsExtensionsPath);
