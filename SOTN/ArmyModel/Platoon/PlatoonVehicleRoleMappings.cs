@@ -18,7 +18,7 @@ namespace SOTN.ArmyModel.Platoon {
                         new VehicleRoleAllocation(VehicleRole.TRUCK, 2)
                     ),
                     [ArmyUnitType.HEADQUARTERS] = ImmutableArray.Create(
-                        new VehicleRoleAllocation(VehicleRole.CAR, 5),
+                        new VehicleRoleAllocation(VehicleRole.CAR, 1),
                         new VehicleRoleAllocation(VehicleRole.TRUCK, 5)
                     ),
                     [ArmyUnitType.INFANTRY] = ImmutableArray.Create(
@@ -69,7 +69,7 @@ namespace SOTN.ArmyModel.Platoon {
                         new VehicleRoleAllocation(VehicleRole.TRUCK, 2)
                     ),
                     [ArmyUnitType.HEADQUARTERS] = ImmutableArray.Create(
-                        new VehicleRoleAllocation(VehicleRole.CAR, 5),
+                        new VehicleRoleAllocation(VehicleRole.CAR, 1),
                         new VehicleRoleAllocation(VehicleRole.TRUCK, 5)
                     ),
                     [ArmyUnitType.INFANTRY] = ImmutableArray.Create(
