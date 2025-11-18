@@ -117,8 +117,8 @@ namespace SOTN.DCS {
 
                         /*
                          to ensure units aren't overlapping im hoping to establish some spawn areas within the trigger zone:
-                            logi 0-25 m from point
-                            sam 50-75 m from point
+                            logi 0-10m from point
+                            sam 75-100m from point
                             aaa 250-350m from point
                             manpads 950-1000m from point
                         */
@@ -147,6 +147,7 @@ namespace SOTN.DCS {
                                         max_distance = 350;
                                         break;
                                     case VehicleRole.SAM_Short:
+                                    case VehicleRole.SAM_Medium:
                                         min_distance = 75;
                                         max_distance = 100;
                                         break;
@@ -157,9 +158,6 @@ namespace SOTN.DCS {
                                 }
                             }
 
-
-
-                            platoon.SetPosition(unit.Position);
                             CreateVehicleGroup(pydcs, miz, platoon, false, zone, min_distance, max_distance);
                         }
                     }
@@ -186,31 +184,33 @@ namespace SOTN.DCS {
                 position = position.random_point_within(max_distance, min_distance);
             }
 
-                List<dynamic> vehicleTypes = new();
+            List<dynamic> vehicleTypes = new();
             foreach (var vehicleAllocation in unit.VehicleAllocations) {
-                dynamic? vehicleType = null;
-                try {
-                    vehicleType = PyDCS.ResolvePathOnPyObject(dcs, vehicleAllocation.VehicleType);
-                }
-                catch {
-                    // Console.WriteLine($"[WARN] {vehicleAllocation.VehicleType} not found in dcs, trying pydcs_extensions");
-
+                foreach (var vehicle in vehicleAllocation.Set.Vehicles) {
+                    dynamic? vehicleType = null;
                     try {
-                        vehicleType = PyDCS.ResolvePathOnPyObject(extensions, vehicleAllocation.VehicleType);
+                        vehicleType = PyDCS.ResolvePathOnPyObject(dcs, vehicle);
                     }
                     catch {
-                        Console.WriteLine($"[ERROR] {vehicleAllocation.VehicleType} not found in dcs or pydcs_extensions");
+                        // Console.WriteLine($"[WARN] {vehicleAllocation.VehicleType} not found in dcs, trying pydcs_extensions");
+
+                        try {
+                            vehicleType = PyDCS.ResolvePathOnPyObject(extensions, vehicle);
+                        }
+                        catch {
+                            Console.WriteLine($"[ERROR] {vehicle} not found in dcs or pydcs_extensions");
+                        }
+                    }
+                    if (vehicleType == null) {
+                        Console.WriteLine($"null vehicleType: {vehicle}");
+                        continue;
+                    }
+
+                    for (int i = 0; i < vehicleAllocation.Count; ++i) {
+                        vehicleTypes.Add(vehicleType);
                     }
                 }
-                if (vehicleType == null) {
-                    Console.WriteLine($"null vehicleType: {vehicleAllocation.VehicleType}");
-                    continue;
-                }
-
-                for (int i = 0; i < vehicleAllocation.Count; ++i) {
-                    vehicleTypes.Add(vehicleType);
-                }
-            }
+           }
 
             if (!staticGroup) {
                 var group_name = "";

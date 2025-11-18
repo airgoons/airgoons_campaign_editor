@@ -36,16 +36,18 @@ namespace SOTN.ArmyModel.Division {
             private static List<VehicleRoleAllocation> _vehicleRoleAllocations = new List<VehicleRoleAllocation> {
                 new VehicleRoleAllocation(VehicleRole.AAA, 1),
                 new VehicleRoleAllocation(VehicleRole.MANPADS, 1),
-                new VehicleRoleAllocation(VehicleRole.SAM_Short, 1)
+                new VehicleRoleAllocation(VehicleRole.SAM_Medium, 1)
             };
             internal static List<ArmyUnit> Create(Faction faction, Nation? nation, string name) {
                 var platoons = new List<ArmyUnit>();
                 int i = 0;
                 foreach (var roleAlloc in _vehicleRoleAllocations) {
-                    // MANTIS filter
-                    var specificName = $"{roleAlloc.Role.ToString()} {name}-{i}";
-                    var platoon = PlatoonFactory.CreatePlatoon(faction, nation, ArmyUnitType.AIR_DEFENSE, specificName, new List<VehicleRoleAllocation> { roleAlloc });
+                    var platoon = PlatoonFactory.CreatePlatoon(faction, nation, ArmyUnitType.AIR_DEFENSE, name, new List<VehicleRoleAllocation> { roleAlloc });
                     platoon.SetAssignment(ArmyUnitAssignment.HQSAM);
+
+                    var specificName = $"{roleAlloc.Role.ToString()} {platoon.VehicleAllocations.First().Set.NamePrefix} {name}-{i}";  // MANTIS filter
+                    platoon.Name = specificName;
+
                     platoons.Add(platoon);
 
                     ++i;

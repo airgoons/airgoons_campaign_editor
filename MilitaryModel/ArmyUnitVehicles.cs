@@ -27,13 +27,37 @@
     }
 
     public class VehicleAllocation {
-        public string VehicleType { get; }
+        public VehicleSet Set { get; }
         public int Count { get; }
         public VehicleRoleAllocation SourceAllocation { get; }
-        public VehicleAllocation(string type, int count, VehicleRoleAllocation sourceAllocation) {
-            VehicleType = type;
+        public VehicleAllocation(VehicleSet set, int count, VehicleRoleAllocation sourceAllocation) {
+            this.Set = set;
             Count = count;
             SourceAllocation = sourceAllocation;
         }
+    }
+
+    public class VehicleSet {
+        public string NamePrefix { get; }
+        public IReadOnlyList<string> Vehicles { get; }
+        public VehicleSet(string namePrefix, List<string> vehicles) {
+            NamePrefix = namePrefix;
+            Vehicles = vehicles;
+        }
+        public static VehicleSet BasicSingleVehicleSet(string vehicle) {
+            var namePrefix = vehicle.Split('.').Last();
+            return new VehicleSet(namePrefix, new List<string> { vehicle });
+        }
+    }
+
+    public static class NatoVehicleSets {
+        public static readonly VehicleSet Rapier = new VehicleSet(
+            "Rapier",
+            new List<string> {
+                "dcs.vehicles.AirDefence.rapier_fsa_launcher",
+                "dcs.vehicles.AirDefence.rapier_fsa_optical_tracker_unit",
+                "dcs.vehicles.AirDefence.rapier_fsa_blindfire_radar"
+            }
+        );
     }
 }
