@@ -15,7 +15,7 @@ namespace SOTN.ArmyModel.Platoon {
                         ? VehicleTypeResolver.GetVehicleType(resolvedNation.Value, roleAllocation.Role)
                         : VehicleTypeResolver.GetVehicleType(resolvedFaction, roleAllocation.Role);
 
-                    return new VehicleAllocation(vehicleType, roleAllocation.Count);
+                    return new VehicleAllocation(vehicleType, roleAllocation.Count, roleAllocation);
                 })
                 .ToList();
 
@@ -31,7 +31,7 @@ namespace SOTN.ArmyModel.Platoon {
                         ? VehicleTypeResolver.GetVehicleType(resolvedNation.Value, roleAllocation.Role)
                         : VehicleTypeResolver.GetVehicleType(resolvedFaction, roleAllocation.Role);
 
-                    return new VehicleAllocation(vehicleType, roleAllocation.Count);
+                    return new VehicleAllocation(vehicleType, roleAllocation.Count, roleAllocation);
                 })
                 .ToList();
 

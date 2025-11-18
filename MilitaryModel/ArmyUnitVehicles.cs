@@ -29,9 +29,11 @@
     public class VehicleAllocation {
         public string VehicleType { get; }
         public int Count { get; }
-        public VehicleAllocation(string type, int count) {
+        public VehicleRoleAllocation SourceAllocation { get; }
+        public VehicleAllocation(string type, int count, VehicleRoleAllocation sourceAllocation) {
             VehicleType = type;
             Count = count;
+            SourceAllocation = sourceAllocation;
         }
     }
 }

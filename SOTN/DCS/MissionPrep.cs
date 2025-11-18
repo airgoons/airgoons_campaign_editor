@@ -5,6 +5,7 @@ using NetTopologySuite.Operation.Distance;
 using NetTopologySuite.Utilities;
 using PyDCSInterop;
 using Python.Runtime;
+using SOTN.ArmyModel.Platoon;
 using System.Net;
 using System.Xml.Linq;
 
@@ -96,10 +97,11 @@ namespace SOTN.DCS {
                 if ((unit.Echelon == ArmyUnitEchelon.BRIGADE) || (unit.Echelon == ArmyUnitEchelon.DIVISION)) {
                     unit.SetAssignment(ArmyUnitAssignment.HQSAM);
                     unit.SetDeploymentOrder(DeploymentOrder.HQSAM);
-                    
+
                     // do not recurse into factory created subordinate ArmyUnits, only work with Platoons for now
                     foreach (var platoon in unit.Subordinates.Where(u => u.Echelon == ArmyUnitEchelon.PLATOON)) {
                         platoon.SetPosition(unit.Position);
+
 
                         if (unit.Heading != null) {
                             platoon.SetHeading(unit.Heading.Value);
@@ -113,15 +115,52 @@ namespace SOTN.DCS {
                             }
                         }
 
+                        /*
+                         to ensure units aren't overlapping im hoping to establish some spawn areas within the trigger zone:
+                            logi 0-25 m from point
+                            sam 50-75 m from point
+                            aaa 250-350m from point
+                            manpads 950-1000m from point
+                        */
+                        double min_distance = 0;
+                        double max_distance = 0;
+
                         // Add HQ Statics
                         if (platoon.Assignment == ArmyUnitAssignment.HEADQUARTERS_AREA) {
-                            CreateVehicleGroup(pydcs, miz, platoon, zone, true);
+                            min_distance = 0;
+                            max_distance = 10;
+
+                            CreateVehicleGroup(pydcs, miz, platoon, true, zone, min_distance, max_distance);
                         }
 
                         // Add HQ SAMs
                         if (platoon.Assignment == ArmyUnitAssignment.HQSAM) {
-                            platoon.SetPosition(unit.Position);  // TODO:  offset 250 meters south to deconflict with statics
-                            CreateVehicleGroup(pydcs, miz, platoon, zone, false);
+                            var unit0 = platoon.VehicleAllocations.FirstOrDefault();
+                            if (unit0 != null) {
+                                switch (unit0.SourceAllocation.Role) {
+                                    case VehicleRole.MANPADS:
+                                        min_distance = 950;
+                                        max_distance = 1000;
+                                        break;
+                                    case VehicleRole.AAA:
+                                        min_distance = 250;
+                                        max_distance = 350;
+                                        break;
+                                    case VehicleRole.SAM_Short:
+                                        min_distance = 75;
+                                        max_distance = 100;
+                                        break;
+
+                                    default:
+                                        throw new NotImplementedException($"HQSAM spawn logic for VehicleRole not implemented [{unit0.SourceAllocation.Role}]");
+
+                                }
+                            }
+
+
+
+                            platoon.SetPosition(unit.Position);
+                            CreateVehicleGroup(pydcs, miz, platoon, false, zone, min_distance, max_distance);
                         }
                     }
                 }
@@ -135,7 +174,7 @@ namespace SOTN.DCS {
 
         }
 
-        private static void CreateVehicleGroup(PyDCS pydcs, dynamic miz, ArmyUnit unit, dynamic? zone = null, bool staticGroup = false) {
+        private static void CreateVehicleGroup(PyDCS pydcs, dynamic miz, ArmyUnit unit, bool staticGroup = false, dynamic ? zone = null, double min_distance = 0, double max_distance = 0) {
             dynamic dcs = pydcs.DCS;
             dynamic extensions = pydcs.PydcsExtensions;
             var country = GetMizCountry(dcs, miz, unit.Faction);
@@ -144,8 +183,6 @@ namespace SOTN.DCS {
             dynamic position = dcs.mapping.Point.from_latlng(latlng, miz.terrain);  // default behavior
             if (zone != null) {
                 // place randomly in zone
-                dynamic max_distance = zone.radius * 0.95;
-                dynamic min_distance = zone.radius * 0.10;
                 position = position.random_point_within(max_distance, min_distance);
             }
 
