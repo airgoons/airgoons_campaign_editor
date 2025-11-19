@@ -45,7 +45,7 @@ namespace SOTN.ArmyModel.Division {
                     var platoon = PlatoonFactory.CreatePlatoon(faction, nation, ArmyUnitType.AIR_DEFENSE, name, new List<VehicleRoleAllocation> { roleAlloc });
                     platoon.SetAssignment(ArmyUnitAssignment.HQSAM);
 
-                    var specificName = $"{roleAlloc.Role.ToString()} {platoon.VehicleAllocations.First().Set.NamePrefix} {name}-{i}";  // MANTIS filter
+                    var specificName = $"{platoon.VehicleAllocations.First().Set.NamePrefix} {name}-{i}";  // MANTIS filter
                     platoon.Name = specificName;
 
                     platoons.Add(platoon);
