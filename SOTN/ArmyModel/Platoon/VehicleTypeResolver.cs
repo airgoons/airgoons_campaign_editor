@@ -32,7 +32,7 @@ namespace SOTN.ArmyModel.Platoon {
                     [VehicleRole.TRUCK] = new VehicleSet("dcs.vehicles.Unarmed.M_818")
                 },
                 [Faction.WarsawPact] = new Dictionary<VehicleRole, VehicleSet> {
-                    [VehicleRole.AAA] = new VehicleSet("dcs.vehicles.AirDefence.ZSU_23_4_Shilka"),
+                    [VehicleRole.AAA] = WarsawPactVehicleSets.Shilka,
                     [VehicleRole.AMPHIB_TANK] = new VehicleSet("dcs.vehicles.Armor.PT_76"),
                     [VehicleRole.APC] = new VehicleSet("dcs.vehicles.Armor.BTR_80"),
                     [VehicleRole.ARMORED_SCOUT_VEHICLE] = new VehicleSet("dcs.vehicles.Armor.BRDM_2"),

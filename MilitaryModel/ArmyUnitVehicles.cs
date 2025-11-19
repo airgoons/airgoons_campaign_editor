@@ -137,6 +137,7 @@ namespace MilitaryModel {
     public static class WarsawPactVehicleSets {
         public static readonly VehicleSet SA8 = new VehicleSet(Mantis.SamUnit.SA8, "dcs.vehicles.AirDefence.Osa_9A33_ln");
         public static readonly VehicleSet MANPADS_Strela2_SA7 = new VehicleSet(Mantis.SamType.POINT, "pydcs_extensions.lowdigitsmanpads.MANPADS_Strela2_SA7");
+        public static readonly VehicleSet Shilka = new VehicleSet(Mantis.Category.AAA, "dcs.vehicles.AirDefence.ZSU_23_4_Shilka");
 
     }
 }
