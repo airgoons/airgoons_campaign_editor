@@ -50,7 +50,7 @@ namespace MilitaryModel {
 
         public ArmyUnitEchelon Echelon { get; }
         public ArmyUnitType UnitType { get; }
-        public string? Name { get; }
+        public string? Name { get; set; }
         public string? Description { get; }
 
         private Vector? _position = null;

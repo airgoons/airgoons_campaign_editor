@@ -5,12 +5,13 @@ using NetTopologySuite.Operation.Distance;
 using NetTopologySuite.Utilities;
 using PyDCSInterop;
 using Python.Runtime;
+using SOTN.ArmyModel.Platoon;
 using System.Net;
 using System.Xml.Linq;
 
 namespace SOTN.DCS {
     public static class MissionPrep {
-        public static void GenerateMiz(PyDCS pydcs, string templatePath, string outputPath, IReadOnlyList<ArmyUnit> topLevelUnits, IReadOnlyList<ArmyUnit> generatedUnits, Geometry? fronts, bool createAllPlacemarks, bool spawnUnits, bool spawnCommandPlacemarkCarOnly) {
+        public static void GenerateMiz(PyDCS pydcs, string templatePath, string outputPath, IReadOnlyList<ArmyUnit> topLevelUnits, Geometry? fronts) {
             dynamic dcs = pydcs.DCS;
             dynamic terrain = dcs.terrain.GermanyColdWar();
             dynamic miz = dcs.Mission(terrain);
@@ -18,78 +19,8 @@ namespace SOTN.DCS {
             miz.load_file(templatePath);
 
             AddFronts(pydcs, miz, fronts);
+            AddUnits(pydcs, miz, topLevelUnits);
 
-            if (createAllPlacemarks) {
-                foreach (var unit in topLevelUnits) {
-                    if (unit == null) continue;
-                    if (unit.Position == null) continue;
-                    if (unit.Name == null) continue;
-
-                    dynamic latlng = dcs.mapping.LatLng(unit.Position.Latitude, unit.Position.Longitude);
-                    dynamic position = dcs.mapping.Point.from_latlng(latlng, terrain);
-                    double radius = 200;
-                    bool hidden = false;
-                    string name = unit.Name;
-                    dynamic zone = miz.triggers.add_triggerzone(position, radius, hidden, name);
-                }
-            }
-
-            // assume units is flattened, do not recurse
-            foreach (var unit in generatedUnits)
-            {
-                if (unit == null)
-                {
-                    Console.WriteLine("[WARN] unit null, skipping");
-                    continue;
-                }
-                if (unit.Name == null)
-                {
-                    Console.WriteLine($"[WARN] MissionPrep:  unit.Name null, skipping");
-                    continue;
-                }
-                if (unit.Position == null)
-                {
-                    Console.WriteLine($"[WARN] MissionPrep:  unit position null {unit.Name}, skipping");
-                    continue;
-                }
-                // place trigger zone
-                dynamic latlng = dcs.mapping.LatLng(unit.Position.Latitude, unit.Position.Longitude);
-                dynamic position = dcs.mapping.Point.from_latlng(latlng, terrain);
-                double radius = 200;
-                bool hidden = false;
-                string name = unit.Name;
-                if (!createAllPlacemarks)
-                {
-                    dynamic zone = miz.triggers.add_triggerzone(position, radius, hidden, name);
-                }
-
-                // Full vehicle spawning occurs at the Platoon level only
-                if ((unit.Echelon == ArmyUnitEchelon.PLATOON) && !spawnCommandPlacemarkCarOnly)
-                {
-                    if ((unit.DeploymentOrder == DeploymentOrder.COMBAT) || (unit.DeploymentOrder == DeploymentOrder.HQSAM))
-                    {
-                        if (unit.Assignment == ArmyUnitAssignment.HEADQUARTERS_AREA)
-                        {
-                            CreateVehicleGroup(dcs, miz, unit, true);
-                        }
-                        else
-                        {
-                            CreateVehicleGroup(dcs, miz, unit, false);
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[WARN] unit assignment and deployment order combination not supported: {unit.Name}, {unit.Assignment}, {unit.DeploymentOrder}");
-                        continue;
-                    }
-                }
-                else if (spawnCommandPlacemarkCarOnly && ((unit.Echelon == ArmyUnitEchelon.DIVISION) || (unit.Echelon == ArmyUnitEchelon.BRIGADE) || (unit.Echelon == ArmyUnitEchelon.BATTALION)))
-                {
-                    CreatePlacemarkCar(dcs, miz, unit);
-                }
-            }           
-
-            // save new miz
             miz.save(outputPath);
         }
         
@@ -105,11 +36,18 @@ namespace SOTN.DCS {
                 var lines = MilitaryModel.DeploymentModel.KernelFlotGenerator.ExtractLineStrings(fronts) as System.Collections.IEnumerable;
                 if (lines != null)
                 {
+                    int i = 0;
                     foreach (var lineObj in lines)
                     {
+                        ++i;  // 1 index the lines for naming convention
                         var line = lineObj as NetTopologySuite.Geometries.LineString;
+                        var front_name = $"FLOT_{i}";
+
                         if (line == null) continue;
                         var coords = new SharpKml.Dom.CoordinateCollection();
+
+                        //dynamic centroid = dcs.mapping.Point.from_latlng(dcs.mapping.LatLng(line.Centroid.Y, line.Centroid.X), terrain);
+                        dynamic zerozero = dcs.mapping.Point(0, 0, terrain);
 
                         List<dynamic> points = new();
                         foreach (var coord in line.Coordinates)
@@ -118,8 +56,110 @@ namespace SOTN.DCS {
                             points.Add(point);
                         }
 
-                        layer.add_line_segments(points[0], points.GetRange(1, points.Count - 1));
+                        
+                        dynamic drawing = dcs.drawing.line.LineDrawing(
+                            true,                                   // visible
+                            zerozero,                               // position
+                            front_name,                                 // name
+                            dcs.drawing.Rgba(193,0,0,255),          // color [vaha's FLOT color choice]
+                            layer.name,                             // layer_name, end of Drawing() args
+                            false,                                  // closed
+                            8,                                      // line_thickness
+                            dcs.drawing.drawing.LineStyle.Boundry1, // line_style
+                            dcs.drawing.line.LineMode.Segments,     // line_mode
+                            points                                  // points
+                        );
 
+                        layer.add_drawing(drawing);
+                    }
+                }
+            }
+        }
+
+        private static void AddUnits(PyDCS pydcs, dynamic miz, IReadOnlyList<ArmyUnit> units) {
+            dynamic dcs = pydcs.DCS;
+            dynamic terrain = dcs.terrain.GermanyColdWar();
+
+            foreach (var unit in units) {
+                if (unit == null) continue;
+                if (unit.Position == null) continue;
+                if (unit.Name == null) continue;
+
+                // Add Trigger Zone
+                dynamic latlng = dcs.mapping.LatLng(unit.Position.Latitude, unit.Position.Longitude);
+                dynamic position = dcs.mapping.Point.from_latlng(latlng, terrain);
+                double radius = 200;
+                bool hidden = false;
+                string name = unit.Name;
+                dynamic zone = miz.triggers.add_triggerzone(position, radius, hidden, name);
+
+
+                if ((unit.Echelon == ArmyUnitEchelon.BRIGADE) || (unit.Echelon == ArmyUnitEchelon.DIVISION)) {
+                    unit.SetAssignment(ArmyUnitAssignment.HQSAM);
+                    unit.SetDeploymentOrder(DeploymentOrder.HQSAM);
+
+                    // do not recurse into factory created subordinate ArmyUnits, only work with Platoons for now
+                    foreach (var platoon in unit.Subordinates.Where(u => u.Echelon == ArmyUnitEchelon.PLATOON)) {
+                        platoon.SetPosition(unit.Position);
+
+
+                        if (unit.Heading != null) {
+                            platoon.SetHeading(unit.Heading.Value);
+                        }
+                        else {
+                            if (unit.Faction == Faction.NATO) {
+                                platoon.SetHeading(90);
+                            }
+                            else {
+                                platoon.SetHeading(270);
+                            }
+                        }
+
+                        /*
+                         to ensure units aren't overlapping im hoping to establish some spawn areas within the trigger zone:
+                            logi 0-10m from point
+                            sam 75-100m from point
+                            aaa 250-350m from point
+                            manpads 950-1000m from point
+                        */
+                        double min_distance = 0;
+                        double max_distance = 0;
+
+                        // Add HQ Statics
+                        if (platoon.Assignment == ArmyUnitAssignment.HEADQUARTERS_AREA) {
+                            min_distance = 0;
+                            max_distance = 10;
+
+                            CreateVehicleGroup(pydcs, miz, platoon, true, zone, min_distance, max_distance);
+                        }
+
+                        // Add HQ SAMs
+                        if (platoon.Assignment == ArmyUnitAssignment.HQSAM) {
+                            var unit0 = platoon.VehicleAllocations.FirstOrDefault();
+                            if (unit0 != null) {
+                                switch (unit0.SourceAllocation.Role) {
+                                    case VehicleRole.MANPADS:
+                                        min_distance = 950;
+                                        max_distance = 1000;
+                                        break;
+                                    case VehicleRole.AAA:
+                                        min_distance = 250;
+                                        max_distance = 350;
+                                        break;
+                                    case VehicleRole.SAM_Short:
+                                    case VehicleRole.SAM_Medium:
+                                        min_distance = 75;
+                                        max_distance = 100;
+                                        break;
+
+                                    default:
+                                        throw new NotImplementedException($"HQSAM spawn logic for VehicleRole not implemented [{unit0.SourceAllocation.Role}]");
+
+                                }
+                            }
+
+                            CreateVehicleGroup(pydcs, miz, platoon, false, zone, min_distance, max_distance);
+                        }
                     }
                 }
             }
@@ -132,26 +172,60 @@ namespace SOTN.DCS {
 
         }
 
-        private static void CreateVehicleGroup(dynamic dcs, dynamic miz, ArmyUnit unit, bool staticGroup = false) {
+        private static void CreateVehicleGroup(PyDCS pydcs, dynamic miz, ArmyUnit unit, bool staticGroup = false, dynamic ? zone = null, double min_distance = 0, double max_distance = 0) {
+            dynamic dcs = pydcs.DCS;
+            dynamic extensions = pydcs.PydcsExtensions;
             var country = GetMizCountry(dcs, miz, unit.Faction);
             dynamic latlng = dcs.mapping.LatLng(unit.Position.Latitude, unit.Position.Longitude);
-            dynamic position = dcs.mapping.Point.from_latlng(latlng, miz.terrain);
+
+            dynamic position = dcs.mapping.Point.from_latlng(latlng, miz.terrain);  // default behavior
+            if (zone != null) {
+                // place randomly in zone
+                position = position.random_point_within(max_distance, min_distance);
+            }
 
             List<dynamic> vehicleTypes = new();
             foreach (var vehicleAllocation in unit.VehicleAllocations) {
-                var vehicleType = PyDCS.ResolvePathOnPyObject(dcs, vehicleAllocation.VehicleType);
-                if (vehicleType == null) {
-                    Console.WriteLine($"null vehicleType: {vehicleAllocation.VehicleType}");
-                    continue;
-                }
+                foreach (var vehicle in vehicleAllocation.Set.Vehicles) {
+                    dynamic? vehicleType = null;
+                    try {
+                        vehicleType = PyDCS.ResolvePathOnPyObject(dcs, vehicle);
+                    }
+                    catch {
+                        // Console.WriteLine($"[WARN] {vehicleAllocation.VehicleType} not found in dcs, trying pydcs_extensions");
 
-                for (int i = 0; i < vehicleAllocation.Count; ++i) {
-                    vehicleTypes.Add(vehicleType);
+                        try {
+                            vehicleType = PyDCS.ResolvePathOnPyObject(extensions, vehicle);
+                        }
+                        catch {
+                            Console.WriteLine($"[ERROR] {vehicle} not found in dcs or pydcs_extensions");
+                        }
+                    }
+                    if (vehicleType == null) {
+                        Console.WriteLine($"null vehicleType: {vehicle}");
+                        continue;
+                    }
+
+                    for (int i = 0; i < vehicleAllocation.Count; ++i) {
+                        vehicleTypes.Add(vehicleType);
+                    }
                 }
-            }
+           }
 
             if (!staticGroup) {
-                miz.vehicle_group_platoon(country, "wonko", vehicleTypes, position, unit.Heading);
+                var group_name = "";
+                if (unit.Assignment == ArmyUnitAssignment.HQSAM) {
+                    if (unit.Faction == Faction.NATO) {
+                        group_name = $"BSAM {unit.Name}";
+                    }
+                    else {
+                        group_name = $"RSAM {unit.Name}";
+                    }
+                }
+
+                dynamic group = miz.vehicle_group_platoon(country, group_name, vehicleTypes, position, unit.Heading);
+                group.hidden_on_planner = true;
+                group.hidden_on_mfd = true;
             }
             else {
                 CreateStaticVehicleGroup(dcs, miz, unit, country, position, vehicleTypes);
@@ -167,7 +241,7 @@ namespace SOTN.DCS {
             var deltaX = enforcedSpacing * Math.Cos(headingRadians);
             var deltaY = enforcedSpacing * Math.Sin(headingRadians);
 
-            var groupName = "wonko_static";
+            var groupName = $"{unit.Name}_HQ_STATIC";
             // thanks ralree  https://github.com/ralreegorganon/calvinball/blob/cefdb8a8d974337fc03d53e934a17b7570c8ee6d/calvinball/mission.py#L232
             
             var sg = dcs.unitgroup.StaticGroup(miz.next_unit_id(), groupName);
@@ -186,21 +260,6 @@ namespace SOTN.DCS {
             sg.add_point(staticPoint);
 
             country.add_static_group(sg);
-        }
-
-        private static void CreatePlacemarkCar(dynamic dcs, dynamic miz, ArmyUnit unit) {
-            if (unit == null) return;
-            if (unit.Nation == null) return;
-
-            ArmyUnit interceptedUnit = unit;
-            var placemarkCarVehiclesList = new List<VehicleAllocation>();
-
-            var carType = SOTN.ArmyModel.Platoon.VehicleTypeResolver.GetVehicleType(interceptedUnit.Nation.Value, VehicleRole.CAR);
-
-            placemarkCarVehiclesList.Add(new VehicleAllocation(carType, 1));
-            interceptedUnit.SetVehicleAllocations(placemarkCarVehiclesList);
-
-            CreateVehicleGroup(dcs, miz, interceptedUnit, false);
         }
     }
 }

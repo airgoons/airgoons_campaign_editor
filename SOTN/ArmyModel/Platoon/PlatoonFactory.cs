@@ -11,11 +11,11 @@ namespace SOTN.ArmyModel.Platoon {
 
             var vehicleAllocations = vehicleRoleAllocations
                 .Select(roleAllocation => {
-                    var vehicleType = resolvedNation != null
-                        ? VehicleTypeResolver.GetVehicleType(resolvedNation.Value, roleAllocation.Role)
-                        : VehicleTypeResolver.GetVehicleType(resolvedFaction, roleAllocation.Role);
+                    var vehicleSet = resolvedNation != null
+                        ? VehicleTypeResolver.GetVehicleSet(resolvedNation.Value, roleAllocation.Role)
+                        : VehicleTypeResolver.GetVehicleSet(resolvedFaction, roleAllocation.Role);
 
-                    return new VehicleAllocation(vehicleType, roleAllocation.Count);
+                    return new VehicleAllocation(vehicleSet, roleAllocation.Count, roleAllocation);
                 })
                 .ToList();
 
@@ -27,11 +27,11 @@ namespace SOTN.ArmyModel.Platoon {
 
             var vehicleAllocations = vehicleRoleAllocations
                 .Select(roleAllocation => {
-                    var vehicleType = resolvedNation != null
-                        ? VehicleTypeResolver.GetVehicleType(resolvedNation.Value, roleAllocation.Role)
-                        : VehicleTypeResolver.GetVehicleType(resolvedFaction, roleAllocation.Role);
+                    var vehicleSet = resolvedNation != null
+                        ? VehicleTypeResolver.GetVehicleSet(resolvedNation.Value, roleAllocation.Role)
+                        : VehicleTypeResolver.GetVehicleSet(resolvedFaction, roleAllocation.Role);
 
-                    return new VehicleAllocation(vehicleType, roleAllocation.Count);
+                    return new VehicleAllocation(vehicleSet, roleAllocation.Count, roleAllocation);
                 })
                 .ToList();
 
