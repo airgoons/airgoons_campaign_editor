@@ -1,5 +1,6 @@
 ﻿using Python.Runtime;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace PyDCSInterop {
     // Minimal, deterministic Python initialization for a known working venv and DLL.
@@ -66,12 +67,32 @@ namespace PyDCSInterop {
                 }
             }
 
+            var libPath = "";
+            var sitePackages = "";
+            var dllsPath = "";
+            var scriptsPath = "";
+            var pydcsSrc = "";
+
             // Build venv paths
-            var libPath = Path.Combine(resolvedVenv, "Lib");
-            var sitePackages = Path.Combine(libPath, "site-packages");
-            var dllsPath = Path.Combine(resolvedVenv, "DLLs");
-            var scriptsPath = Path.Combine(resolvedVenv, "Scripts");
-            var pydcsSrc = Path.Combine(resolvedVenv, "src", "pydcs");
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                libPath = Path.Combine(resolvedVenv, "Lib");
+                sitePackages = Path.Combine(libPath, "site-packages");
+                dllsPath = Path.Combine(resolvedVenv, "DLLs");
+                scriptsPath = Path.Combine(resolvedVenv, "Scripts");
+                pydcsSrc = Path.Combine(resolvedVenv, "src", "pydcs");
+            }
+
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
+                // Build venv paths for Linux
+                libPath = Path.Combine(resolvedVenv, "lib", "python3.13");   // stdlib root inside venv
+                sitePackages = Path.Combine(libPath, "site-packages");       // venv site-packages
+                dllsPath = Path.Combine(libPath, "lib-dynload");             // extension modules (.so)
+                scriptsPath = Path.Combine(resolvedVenv, "bin");             // executables (activate, python)
+                pydcsSrc = Path.Combine(resolvedVenv, "src", "pydcs");       // your package source
+            }
+            else {
+                throw new NotImplementedException("unknown OS");
+            }
 
             // Determine interpreterRoot from the venv when possible:
             // 1. If pyvenv.cfg contains a "home =" entry, prefer that (points to real Python install).
@@ -154,10 +175,25 @@ namespace PyDCSInterop {
                 if (File.Exists(defaultDll)) Runtime.PythonDLL = defaultDll;
             }
 
+            string interpreterLib = "";
+            string interpreterDlls = "";
+            string expectedEnc = "";
+
             // Ensure the interpreter root has the stdlib we expect.
-            var interpreterLib = Path.Combine(interpreterRoot, "Lib");
-            var interpreterDlls = Path.Combine(interpreterRoot, "DLLs"); // critical: add interpreter DLLs dir to python path
-            var expectedEnc = Path.Combine(interpreterLib, "encodings", "__init__.py");
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                interpreterLib = Path.Combine(interpreterRoot, "Lib");
+                interpreterDlls = Path.Combine(interpreterRoot, "DLLs"); // critical: add interpreter DLLs dir to python path
+                expectedEnc = Path.Combine(interpreterLib, "encodings", "__init__.py");
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
+                interpreterLib = "/usr/lib/python3.13";
+                interpreterDlls = "/usr/lib/python3.13/lib-dynload";
+                expectedEnc = "/usr/lib/python3.13/encodings/__init__.py";
+            }
+            else {
+                throw new NotImplementedException("unknown OS");
+            }
+
             if (!File.Exists(expectedEnc)) {
                 throw new InvalidOperationException($"Interpreter root does not contain expected stdlib encodings: {expectedEnc}");
             }
@@ -207,7 +243,10 @@ namespace PyDCSInterop {
                 pythonPathEntries.Add(resolvedExplicitPath);
             }
 
-            var pythonPathValue = string.Join(";", pythonPathEntries);
+            var pythonPathValue = "";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) { pythonPathValue = string.Join(";", pythonPathEntries); }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) { pythonPathValue = string.Join(":", pythonPathEntries); }
+            else { throw new NotImplementedException("unknown OS"); }
 
             // Set environment and pythonnet runtime values
             Environment.SetEnvironmentVariable("PYTHONHOME", interpreterRoot, EnvironmentVariableTarget.Process);
