@@ -33,6 +33,7 @@ from .spanishnavypack import *
 from .super_etendard import *
 from .sk60 import *
 from .su15 import *
+from .su22 import *
 from .su30 import *
 from .su57 import *
 from .swedishmilitaryassetspack import *
